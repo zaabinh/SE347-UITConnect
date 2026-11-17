@@ -4,12 +4,7 @@ from __future__ import annotations
 
 import os
 
-
-def env_flag(name: str, default: bool = False) -> bool:
-    raw_value = os.getenv(name)
-    if raw_value is None:
-        return default
-    return raw_value.strip().lower() in {"1", "true", "yes", "on"}
+from app.core.config import settings
 
 
 def run_database_setup() -> None:
@@ -18,15 +13,15 @@ def run_database_setup() -> None:
     _ = get_database_url()
     create_or_reset_tables(reset=False)
 
-    if not env_flag("SKIP_DB_UPGRADE"):
+    if not settings.skip_db_upgrade:
         run_upgrade()
 
 
 def main() -> None:
-    if env_flag("RUN_DB_SETUP_ON_START"):
+    if settings.run_db_setup_on_start:
         run_database_setup()
 
-    port = os.getenv("PORT", "10000")
+    port = str(settings.port)
     os.execvp(
         "uvicorn",
         [

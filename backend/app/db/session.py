@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
-from app.core.config import DATABASE_URL as raw_database_url
+from app.core.config import settings
 from app.core.exceptions import ConfigurationError
 
 
@@ -36,10 +36,7 @@ def normalize_database_url(database_url: str) -> str:
     return url.set(query=query).render_as_string(hide_password=False)
 
 
-if not raw_database_url:
-    raise ConfigurationError("Missing DATABASE_URL in environment.")
-
-DATABASE_URL = normalize_database_url(raw_database_url)
+DATABASE_URL = normalize_database_url(settings.database_url)
 
 engine = create_engine(
     DATABASE_URL,

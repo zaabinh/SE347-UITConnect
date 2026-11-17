@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.core.config import UPLOAD_DIR, get_cors_origins
+from app.core.config import settings
 from app.db.base import Base
 from app.db.session import engine
 from app.modules.auth import router as auth
@@ -36,7 +36,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=get_cors_origins(),
+    allow_origins=settings.cors_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -51,8 +51,8 @@ app.include_router(comment.router, prefix="/api")
 app.include_router(follow.router)
 app.include_router(admin.router, prefix="/api")
 app.include_router(upload.router)
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+os.makedirs(settings.upload_dir, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads")
 
 
 @app.get("/health")
@@ -73,6 +73,4 @@ async def root():
 if __name__ == "__main__":
     import uvicorn
 
-    host = os.getenv("APP_HOST", "0.0.0.0")
-    port = int(os.getenv("APP_PORT", "8000"))
-    uvicorn.run("app.main:app", host=host, port=port, reload=True, log_level="info")
+    uvicorn.run("app.main:app", host=settings.app_host, port=settings.app_port, reload=True, log_level="info")

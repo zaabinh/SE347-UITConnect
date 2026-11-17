@@ -1,4 +1,4 @@
-import os
+from app.core.config import settings
 from datetime import datetime
 from urllib.parse import urlencode
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -13,13 +13,11 @@ from app.modules.users.models import User
 from app.modules.auth.schemas import CompleteProfileRequest, CurrentUserResponse, ForgotPasswordRequest, LoginRequest, LogoutRequest, MessageResponse, RefreshTokenRequest, RegisterRequest, ResendVerificationRequest, ResetPasswordRequest, TokenResponse, UserResponse, VerificationResponse, VerifyEmailRequest
 from app.modules.auth.service import create_google_user, create_password_reset_token, is_profile_completed, send_password_reset_email
 from app.modules.auth.google_oauth_service import build_google_auth_url, exchange_google_code, fetch_google_userinfo
-from app.core.security import hash_password, verify_password, ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token, create_refresh_token, decode_token
+from app.core.security import hash_password, verify_password, create_access_token, create_refresh_token, decode_token
 
 
 router = APIRouter(tags=["Authentication"])
-FRONTEND_URL = os.getenv("FRONTEND_URL")
-if not FRONTEND_URL:
-    raise RuntimeError("Missing FRONTEND_URL in environment.")
+FRONTEND_URL = str(settings.frontend_url).rstrip("/")
 
 
 def parse_interest_tags(raw_tags: str | None) -> list[str]:
@@ -64,7 +62,7 @@ def create_session_tokens(user: User, request: Request, db: Session) -> TokenRes
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
-        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        expires_in=settings.access_token_expire_minutes * 60,
     )
 
 
@@ -205,7 +203,7 @@ def refresh_token(payload: RefreshTokenRequest, db: Session = Depends(get_db)):
     return TokenResponse(
         access_token=access_token,
         refresh_token=payload.refresh_token,
-        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        expires_in=settings.access_token_expire_minutes * 60,
     )
 
 

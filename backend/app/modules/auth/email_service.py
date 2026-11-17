@@ -1,7 +1,7 @@
-import os
+from app.core.config import settings
 
 
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://127.0.0.1:3000")
+FRONTEND_URL = str(settings.frontend_url).rstrip("/")
 
 
 def build_verification_link(token: str) -> str:

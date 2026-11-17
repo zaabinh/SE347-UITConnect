@@ -3,7 +3,7 @@
 from alembic import context
 
 import app.modules  # noqa: F401 - register all domain models
-from app.core.config import DATABASE_URL
+from app.core.config import settings
 from app.db.base import Base
 
 target_metadata = Base.metadata
@@ -11,7 +11,7 @@ target_metadata = Base.metadata
 
 def run_migrations_offline() -> None:
     context.configure(
-        url=DATABASE_URL,
+        url=settings.database_url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},

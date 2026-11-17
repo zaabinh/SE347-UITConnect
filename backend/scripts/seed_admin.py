@@ -1,22 +1,17 @@
-import os
-
-from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.db.session import SessionLocal
 from app.modules.users.models import User
 from app.core.security import hash_password
 
 
-load_dotenv()
-
-
 def create_admin() -> User:
     db: Session = SessionLocal()
-    admin_email = os.getenv("SEED_ADMIN_EMAIL", "admin@studentforum.dev").strip().lower()
-    admin_username = os.getenv("SEED_ADMIN_USERNAME", "admin").strip().lower()
-    admin_password = os.getenv("SEED_ADMIN_PASSWORD", "admin12345")
-    admin_full_name = os.getenv("SEED_ADMIN_FULL_NAME", "Administrator").strip()
+    admin_email = settings.seed_admin_email.strip().lower()
+    admin_username = settings.seed_admin_username.strip().lower()
+    admin_password = settings.seed_admin_password.get_secret_value()
+    admin_full_name = settings.seed_admin_full_name.strip()
 
     try:
         existing_admin = db.query(User).filter(User.role.ilike("admin")).first()

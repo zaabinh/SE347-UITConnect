@@ -17,8 +17,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import OperationalError
 
-from app.core.config import DATABASE_URL
-from app.core.exceptions import ConfigurationError
+from app.core.config import settings
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Setup the local StudentForum database.")
@@ -30,9 +29,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def get_database_url() -> str:
-    if not DATABASE_URL:
-        raise ConfigurationError("Missing DATABASE_URL in environment.")
-    return DATABASE_URL
+    return settings.database_url
 
 
 def quote_sqlserver_identifier(identifier: str) -> str:

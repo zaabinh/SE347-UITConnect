@@ -1,13 +1,13 @@
 import json
-import os
 import urllib.parse
 import urllib.request
 from fastapi import HTTPException, status
+from app.core.config import settings
 
 
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
-GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://127.0.0.1:8000/auth/google/callback")
+GOOGLE_CLIENT_ID = settings.google_client_id
+GOOGLE_CLIENT_SECRET = settings.google_client_secret.get_secret_value()
+GOOGLE_REDIRECT_URI = str(settings.google_redirect_uri)
 
 
 def build_google_auth_url() -> str:

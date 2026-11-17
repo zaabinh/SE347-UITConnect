@@ -2,12 +2,13 @@ import os
 import shutil
 import uuid
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
+from app.core.config import settings
 
 
 router = APIRouter(prefix="/upload", tags=["Upload"])
 
-UPLOAD_DIR = os.getenv("UPLOAD_DIR", "uploads")
-PUBLIC_API_URL = os.getenv("PUBLIC_API_URL", "").rstrip("/")
+UPLOAD_DIR = settings.upload_dir
+PUBLIC_API_URL = str(settings.public_api_url).rstrip("/") if settings.public_api_url else ""
 
 
 @router.post("/image")

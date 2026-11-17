@@ -84,8 +84,19 @@ Giới hạn hiện tại:
 
 Tạo `backend/.env` từ `backend/.env.example`.
 
+Cấu hình được đọc bằng `pydantic-settings` và kiểm tra trước khi khởi động API
+hoặc chạy setup database. Các biến `DATABASE_URL`, `FRONTEND_URL` và
+`CORS_ALLOWED_ORIGINS` là bắt buộc. Biến môi trường ghi đè giá trị trong `.env`.
+`CORS_ALLOWED_ORIGINS` nhận các HTTP origin phân cách bằng dấu phẩy.
+
+Khi deploy, đặt `APP_ENV=production` (Render Blueprint đã cấu hình sẵn).
+Production từ chối JWT secret mặc định, giá trị mẫu và secret dưới 32 ký tự.
+Tạo secret riêng bằng `python -c "import secrets; print(secrets.token_urlsafe(48))"`
+và lưu vào `JWT_SECRET_KEY`. Không ghi secret vào repository.
+
 ```env
 DATABASE_URL=mssql+pyodbc://USER:PASSWORD@SERVER:1433/StudentForum?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=yes&TrustServerCertificate=yes
+APP_ENV=development
 JWT_SECRET_KEY=replace-with-a-long-random-secret
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=60
