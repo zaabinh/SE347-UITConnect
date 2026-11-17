@@ -44,13 +44,15 @@ class Settings(BaseSettings):
     google_redirect_uri: HttpUrl = HttpUrl("http://127.0.0.1:8000/auth/google/callback")
     app_host: str = Field(default="0.0.0.0", min_length=1)
     app_port: int = Field(default=8000, ge=1, le=65535)
-    port: int = Field(default=10000, ge=1, le=65535)
+    port: int = Field(default=8000, ge=1, le=65535)
     run_db_setup_on_start: bool = False
     skip_db_upgrade: bool = False
     seed_admin_email: str = "admin@studentforum.dev"
     seed_admin_username: str = "admin"
     seed_admin_password: SecretStr = SecretStr("admin12345")
     seed_admin_full_name: str = "Administrator"
+    resend_api_key: str = ""
+    mail_from: str = "UITConnect <uitconnect@zaabinh.id.vn>"
     mail_logo_example: str = ""
 
     @field_validator("app_env", mode="before")
