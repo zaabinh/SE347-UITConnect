@@ -41,6 +41,7 @@ DATABASE_URL = normalize_database_url(settings.database_url)
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
+    hide_parameters=True,
     future=True,
 )
 

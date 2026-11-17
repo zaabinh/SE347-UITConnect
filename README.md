@@ -132,8 +132,26 @@ python -m venv .venv
 .venv\Scripts\activate
 pip install -e ".[dev]"
 python -m scripts.setup_local_db --wait 90
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+python -m app
 ```
+
+Entrypoint chung là `python -m app`, dùng `app.main:app` và factory
+`app.factory.create_app()`. Launcher đọc `APP_HOST` (mặc định `0.0.0.0`) và `PORT`
+(mặc định `8000`) từ settings, không bật reload. `APP_PORT` không được launcher dùng.
+Khi cần reload cho phát triển local, dùng
+`uvicorn app.main:app --reload --host 127.0.0.1 --port 8000`.
+
+Dockerfile chạy `python -m app`; Compose và Render kế thừa CMD đó, không ghi đè
+lệnh chạy. Compose dùng cổng `8000`, Render dùng `PORT=10000`. GitHub Actions
+build cùng Dockerfile và chạy CMD mặc định để kiểm tra `/health` bằng SQLite
+trong bộ nhớ; bước này kiểm tra entrypoint, không thay thế test tích hợp SQL Server.
+Nếu service Render trước đây có Docker Command tùy chỉnh trong Dashboard,
+xóa giá trị đó để service dùng CMD của image.
+
+Lifespan tạo thư mục uploads, kiểm tra kết nối DB bằng `SELECT 1` trước khi nhận
+request và đóng connection pool khi shutdown, kể cả khi startup thất bại.
+API không tự tạo bảng hoặc chạy migration. `/health` là liveness endpoint;
+nó không kiểm tra lại DB trong từng request.
 
 Tài liệu API:
 
@@ -205,7 +223,12 @@ REFRESH_TOKEN_EXPIRE_DAYS=7
 RUN_DB_SETUP_ON_START=false
 ```
 
-Nếu database mới chưa có bảng, đặt `RUN_DB_SETUP_ON_START=true` cho lần deploy đầu, sau đó đổi lại `false`.
+Chuẩn bị schema bằng `python -m scripts.setup_local_db --wait 90` và chạy các
+migration đã được review trong bước deploy riêng, trước khi khởi động worker.
+Thư mục Alembic hiện chưa có revision; `alembic upgrade head` một mình chưa tạo bảng.
+Entrypoint không chạy setup DB, kể cả khi biến cũ `RUN_DB_SETUP_ON_START` được bật.
+Khởi động thất bại nếu không kết nối được DB. `scripts.render_start` chỉ còn là
+alias tương thích gọi cùng launcher.
 
 ## Route chính
 
