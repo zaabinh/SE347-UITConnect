@@ -13,7 +13,7 @@ def env_flag(name: str, default: bool = False) -> bool:
 
 
 def run_database_setup() -> None:
-    from setup_local_db import create_or_reset_tables, get_database_url, run_upgrade
+    from scripts.setup_local_db import create_or_reset_tables, get_database_url, run_upgrade
 
     _ = get_database_url()
     create_or_reset_tables(reset=False)
@@ -31,7 +31,7 @@ def main() -> None:
         "uvicorn",
         [
             "uvicorn",
-            "main:app",
+            "app.main:app",
             "--host",
             "0.0.0.0",
             "--port",

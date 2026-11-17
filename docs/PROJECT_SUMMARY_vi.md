@@ -21,18 +21,17 @@ Cập nhật theo mã nguồn hiện tại: 2026-06-04.
 
 ```text
 backend/
-  main.py
-  database.py
-  render_start.py
+  app/
+    __init__.py
+    main.py
+    core/       # config.py, security.py, exceptions.py
+    db/         # base.py, session.py, init/ (existing SQL scripts)
+    modules/    # auth, users, posts, comments, feed, moderation, notifications
+  alembic/
+  scripts/
+  tests/
+  pyproject.toml
   Dockerfile
-  requirements.txt
-  models/
-  routers/
-  schemas/
-  services/
-  dependencies/
-  utils/
-  db/init/
 
 frontend/
   app/
@@ -57,7 +56,7 @@ PROJECT_SUMMARY_vi.md
 
 ## Backend
 
-Backend là ứng dụng FastAPI tại `backend/main.py`.
+Backend là ứng dụng FastAPI tại `backend/app/main.py`.
 
 ### Yêu cầu runtime
 
@@ -72,7 +71,7 @@ Backend là ứng dụng FastAPI tại `backend/main.py`.
 
 ### Kết nối cơ sở dữ liệu
 
-Backend dùng SQLAlchemy với `mssql+pyodbc`. File `backend/database.py` chuẩn hóa `DATABASE_URL`, mặc định driver là `ODBC Driver 18 for SQL Server`, và kiểm tra driver đã được cài trước khi tạo engine.
+Backend dùng SQLAlchemy với `mssql+pyodbc`. File `backend/app/db/session.py` chuẩn hóa `DATABASE_URL`, mặc định driver là `ODBC Driver 18 for SQL Server`, và kiểm tra driver đã được cài trước khi tạo engine.
 
 Ví dụ cho Azure SQL / Render:
 
@@ -315,7 +314,7 @@ Các service:
 Backend:
 
 ```bash
-python -m py_compile backend/main.py backend/database.py backend/render_start.py
+python -m py_compile backend/app/main.py backend/app/db/session.py backend/scripts/render_start.py
 ```
 
 Frontend:

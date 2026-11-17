@@ -118,3 +118,7 @@ ehthumbs.db
 .env.*.local
 
 pytest.ini
+
+# Graphify local cache and machine-specific state; graph/report exports stay visible.
+graphify-out/cache/
+graphify-out/.*

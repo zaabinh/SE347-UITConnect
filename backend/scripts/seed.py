@@ -1,6 +1,6 @@
-from seed_admin import create_admin
-from seed_data import create_data
-from seed_user import create_demo_user
+from scripts.seed_admin import create_admin
+from scripts.seed_data import create_data
+from scripts.seed_user import create_demo_user
 
 
 def run_seed() -> None:

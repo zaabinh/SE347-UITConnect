@@ -36,7 +36,7 @@ Services:
 
 If you already have data, run:
 
-- `backend/db/init/02_upgrade_moderation_and_profile.sql`
+- `backend/app/db/init/02_upgrade_moderation_and_profile.sql`
 
 This adds:
 

@@ -21,18 +21,17 @@ Last synchronized with source code: 2026-06-04.
 
 ```text
 backend/
-  main.py
-  database.py
-  render_start.py
+  app/
+    __init__.py
+    main.py
+    core/       # config.py, security.py, exceptions.py
+    db/         # base.py, session.py, init/ (existing SQL scripts)
+    modules/    # auth, users, posts, comments, feed, moderation, notifications
+  alembic/
+  scripts/
+  tests/
+  pyproject.toml
   Dockerfile
-  requirements.txt
-  models/
-  routers/
-  schemas/
-  services/
-  dependencies/
-  utils/
-  db/init/
 
 frontend/
   app/
@@ -57,7 +56,7 @@ PROJECT_SUMMARY_vi.md
 
 ## Backend Overview
 
-The backend is a FastAPI app mounted from `backend/main.py`.
+The backend is a FastAPI app mounted from `backend/app/main.py`.
 
 ### Runtime Requirements
 
@@ -72,7 +71,7 @@ The backend is a FastAPI app mounted from `backend/main.py`.
 
 ### Database Connection
 
-The backend uses SQLAlchemy with `mssql+pyodbc`. `backend/database.py` normalizes `DATABASE_URL`, defaults the driver to `ODBC Driver 18 for SQL Server`, and validates that the driver is installed before creating the SQLAlchemy engine.
+The backend uses SQLAlchemy with `mssql+pyodbc`. `backend/app/db/session.py` normalizes `DATABASE_URL`, defaults the driver to `ODBC Driver 18 for SQL Server`, and validates that the driver is installed before creating the SQLAlchemy engine.
 
 Recommended Azure SQL / Render format:
 
@@ -315,7 +314,7 @@ Services:
 Backend:
 
 ```bash
-python -m py_compile backend/main.py backend/database.py backend/render_start.py
+python -m py_compile backend/app/main.py backend/app/db/session.py backend/scripts/render_start.py
 ```
 
 Frontend:

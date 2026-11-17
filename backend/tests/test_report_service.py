@@ -1,4 +1,4 @@
-from services.report_service import normalize_report_reason
+from app.modules.moderation.service import normalize_report_reason
 
 
 def test_normalize_report_reason_maps_aliases() -> None:

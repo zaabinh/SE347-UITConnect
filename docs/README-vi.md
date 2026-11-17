@@ -27,15 +27,17 @@ Cập nhật theo mã nguồn hiện tại: 2026-06-04.
 
 ```text
 backend/
-  main.py
-  database.py
-  render_start.py
+  app/
+    __init__.py
+    main.py
+    core/       # config.py, security.py, exceptions.py
+    db/         # base.py, session.py, init/ (existing SQL scripts)
+    modules/    # auth, users, posts, comments, feed, moderation, notifications
+  alembic/
+  scripts/
+  tests/
+  pyproject.toml
   Dockerfile
-  requirements.txt
-  models/
-  routers/
-  schemas/
-  services/
 
 frontend/
   app/
@@ -120,8 +122,8 @@ cd backend
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
-python setup_local_db.py --wait 90
-uvicorn main:app --reload --host 127.0.0.1 --port 8000
+python -m scripts.setup_local_db --wait 90
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 Tài liệu API:
@@ -234,7 +236,7 @@ Xem `PROJECT_SUMMARY_vi.md` để có danh sách endpoint đầy đủ.
 Backend:
 
 ```powershell
-python -m py_compile backend\main.py backend\database.py backend\render_start.py
+python -m py_compile backend\app\main.py backend\app\db\session.py backend\scripts\render_start.py
 ```
 
 Frontend:

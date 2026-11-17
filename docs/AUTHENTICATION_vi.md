@@ -20,12 +20,12 @@ Hệ thống sử dụng xác thực JWT với:
 
 Các file backend chính:
 
-- backend/routes/auth.py
-- backend/dependencies/auth.py
-- backend/utils/jwt.py
-- backend/utils/hash.py
-- backend/schemas/auth_schema.py
-- backend/models/auth_session.py
+- backend/app/modules/auth/router.py
+- backend/app/modules/auth/dependencies.py
+- backend/app/core/security.py
+- backend/app/core/security.py
+- backend/app/modules/auth/schemas.py
+- backend/app/modules/auth/models.py
 - frontend/lib/axios.ts
 
 ---
@@ -99,7 +99,7 @@ Lưu trữ:
 Mã hóa mật khẩu được thực hiện trong file:
 
 ```
-backend/utils/hash.py
+backend/app/core/security.py
 ```
 
 Cách hoạt động:
@@ -351,7 +351,7 @@ Yêu cầu:
 File:
 
 ```
-backend/dependencies/auth.py
+backend/app/modules/auth/dependencies.py
 ```
 
 ### get_current_user

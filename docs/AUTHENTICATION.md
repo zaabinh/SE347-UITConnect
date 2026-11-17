@@ -16,12 +16,12 @@ The system uses JWT authentication with:
 
 Main backend files:
 
-- [backend/routes/auth.py](/d:/ZB/Code/UIT/NMCNPM/SE104.ForumApp/backend/routes/auth.py)
-- [backend/dependencies/auth.py](/d:/ZB/Code/UIT/NMCNPM/SE104.ForumApp/backend/dependencies/auth.py)
-- [backend/utils/jwt.py](/d:/ZB/Code/UIT/NMCNPM/SE104.ForumApp/backend/utils/jwt.py)
-- [backend/utils/hash.py](/d:/ZB/Code/UIT/NMCNPM/SE104.ForumApp/backend/utils/hash.py)
-- [backend/schemas/auth_schema.py](/d:/ZB/Code/UIT/NMCNPM/SE104.ForumApp/backend/schemas/auth_schema.py)
-- [backend/models/auth_session.py](/d:/ZB/Code/UIT/NMCNPM/SE104.ForumApp/backend/models/auth_session.py)
+- [backend/app/modules/auth/router.py](/d:/ZB/Code/UIT/NMCNPM/SE104.ForumApp/backend/app/modules/auth/router.py)
+- [backend/app/modules/auth/dependencies.py](/d:/ZB/Code/UIT/NMCNPM/SE104.ForumApp/backend/app/modules/auth/dependencies.py)
+- [backend/app/core/security.py](/d:/ZB/Code/UIT/NMCNPM/SE104.ForumApp/backend/app/core/security.py)
+- [backend/app/core/security.py](/d:/ZB/Code/UIT/NMCNPM/SE104.ForumApp/backend/app/core/security.py)
+- [backend/app/modules/auth/schemas.py](/d:/ZB/Code/UIT/NMCNPM/SE104.ForumApp/backend/app/modules/auth/schemas.py)
+- [backend/app/modules/auth/models.py](/d:/ZB/Code/UIT/NMCNPM/SE104.ForumApp/backend/app/modules/auth/models.py)
 - [frontend/lib/axios.ts](/d:/ZB/Code/UIT/NMCNPM/SE104.ForumApp/frontend/lib/axios.ts)
 
 ## Token Model
@@ -82,7 +82,7 @@ Persistence:
 
 ## Password Handling
 
-Password hashing is implemented in [hash.py](/d:/ZB/Code/UIT/NMCNPM/SE104.ForumApp/backend/utils/hash.py).
+Password hashing is implemented in [hash.py](/d:/ZB/Code/UIT/NMCNPM/SE104.ForumApp/backend/app/core/security.py).
 
 Current behavior:
 
@@ -333,7 +333,7 @@ Behavior:
 
 File:
 
-- [backend/dependencies/auth.py](/d:/ZB/Code/UIT/NMCNPM/SE104.ForumApp/backend/dependencies/auth.py)
+- [backend/app/modules/auth/dependencies.py](/d:/ZB/Code/UIT/NMCNPM/SE104.ForumApp/backend/app/modules/auth/dependencies.py)
 
 ### `get_current_user`
 

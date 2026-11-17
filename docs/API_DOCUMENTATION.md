@@ -103,7 +103,7 @@ FRONTEND_URL=http://127.0.0.1:3000
 ```bash
 fastapi dev main.py
 # or
-python main.py
+python -m app.main
 ```
 
 Server runs on: `http://localhost:8000`
@@ -472,7 +472,7 @@ FRONTEND_URL=https://your-frontend.vercel.app
 
 ### Run with Gunicorn
 ```bash
-gunicorn -w 4 -k uvicorn.workers.UvicornWorker main:app
+gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app
 ```
 
 ## Performance Considerations

@@ -27,15 +27,16 @@ Cập nhật theo mã nguồn hiện tại: 2026-06-04.
 
 ```text
 backend/
-  main.py
-  database.py
-  render_start.py
+  app/
+    main.py
+    core/
+    db/
+    modules/  # auth, users, posts, comments, feed, moderation, notifications
+  alembic/
+  scripts/
+  tests/
+  pyproject.toml
   Dockerfile
-  requirements.txt
-  models/
-  routers/
-  schemas/
-  services/
 
 frontend/
   app/
@@ -118,9 +119,9 @@ NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
 cd backend
 python -m venv .venv
 .venv\Scripts\activate
-pip install -r requirements.txt
-python setup_local_db.py --wait 90
-uvicorn main:app --reload --host 127.0.0.1 --port 8000
+pip install -e ".[dev]"
+python -m scripts.setup_local_db --wait 90
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 Tài liệu API:
@@ -233,7 +234,8 @@ Xem `PROJECT_SUMMARY_vi.md` để có danh sách endpoint đầy đủ.
 Backend:
 
 ```powershell
-python -m py_compile backend\main.py backend\database.py backend\render_start.py
+cd backend
+python -m pytest -q
 ```
 
 Frontend:

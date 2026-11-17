@@ -4,7 +4,7 @@ from pathlib import Path
 
 from sqlalchemy import text
 
-from database import engine
+from app.db.session import engine
 
 
 def _split_batches(sql_text: str) -> list[str]:
@@ -39,7 +39,7 @@ def run_upgrade_script(path: Path) -> None:
 
 
 def main() -> None:
-    script_path = Path(__file__).resolve().parent / "db" / "init" / "02_upgrade_moderation_and_profile.sql"
+    script_path = Path(__file__).resolve().parents[1] / "app" / "db" / "init" / "02_upgrade_moderation_and_profile.sql"
     if not script_path.exists():
         raise FileNotFoundError(f"Upgrade script not found: {script_path}")
     run_upgrade_script(script_path)

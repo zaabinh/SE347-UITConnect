@@ -5,18 +5,18 @@ from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
 
-from database import SessionLocal
-from models.bookmark import Bookmark
-from models.comment import Comment
-from models.post import Post
-from models.post_like import PostLike
-from models.post_share import PostShare
-from models.post_tag import PostTag
-from models.post_view import PostView
-from models.tag import Tag
-from models.user import User
-from services.post_service import slugify
-from utils.hash import hash_password
+from app.db.session import SessionLocal
+from app.modules.posts.models import Bookmark
+from app.modules.comments.models import Comment
+from app.modules.posts.models import Post
+from app.modules.posts.models import PostLike
+from app.modules.posts.models import PostShare
+from app.modules.posts.models import PostTag
+from app.modules.posts.models import PostView
+from app.modules.posts.models import Tag
+from app.modules.users.models import User
+from app.modules.posts.service import slugify
+from app.core.security import hash_password
 
 
 def _norm(value: str | None) -> str:

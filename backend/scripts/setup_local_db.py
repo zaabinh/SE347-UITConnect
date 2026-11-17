@@ -11,14 +11,14 @@ Use --reset only when you intentionally want to drop/recreate all tables.
 from __future__ import annotations
 
 import argparse
-import os
 import time
 
-from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import OperationalError
 
+from app.core.config import DATABASE_URL
+from app.core.exceptions import ConfigurationError
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Setup the local StudentForum database.")
@@ -30,11 +30,9 @@ def parse_args() -> argparse.Namespace:
 
 
 def get_database_url() -> str:
-    load_dotenv()
-    database_url = os.getenv("DATABASE_URL")
-    if not database_url:
-        raise RuntimeError("Missing DATABASE_URL in environment.")
-    return database_url
+    if not DATABASE_URL:
+        raise ConfigurationError("Missing DATABASE_URL in environment.")
+    return DATABASE_URL
 
 
 def quote_sqlserver_identifier(identifier: str) -> str:
@@ -75,8 +73,9 @@ def create_database_if_missing(database_url: str, wait_seconds: int) -> None:
 
 
 def create_or_reset_tables(reset: bool) -> None:
-    from database import Base, engine
-    import models  # noqa: F401 - ensure all model metadata is registered
+    from app.db.base import Base
+    from app.db.session import engine
+    import app.modules  # noqa: F401 - ensure all model metadata is registered
 
     if reset:
         Base.metadata.drop_all(bind=engine)
@@ -87,13 +86,13 @@ def create_or_reset_tables(reset: bool) -> None:
 
 
 def run_upgrade() -> None:
-    from upgrade_db import main as upgrade_main
+    from scripts.upgrade_db import main as upgrade_main
 
     upgrade_main()
 
 
 def run_seed() -> None:
-    from seed import run_seed
+    from scripts.seed import run_seed
 
     run_seed()
 

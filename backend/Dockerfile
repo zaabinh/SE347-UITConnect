@@ -29,9 +29,11 @@ RUN apt-get update \
     && apt-get purge -y --auto-remove curl gnupg \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY pyproject.toml .
+COPY app ./app
+COPY scripts ./scripts
 RUN pip install --upgrade pip \
-    && pip install -r requirements.txt
+    && pip install .
 
 COPY . .
 
@@ -42,4 +44,4 @@ USER appuser
 
 EXPOSE 10000
 
-CMD ["python", "render_start.py"]
+CMD ["python", "-m", "scripts.render_start"]

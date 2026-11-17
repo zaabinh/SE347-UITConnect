@@ -48,13 +48,13 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 
 ```bash
 # Using FastAPI's dev server (recommended)
-fastapi dev main.py
+fastapi dev app/main.py
 
 # Or using uvicorn directly
-uvicorn main:app --reload
+uvicorn app.main:app --reload
 
 # Or using Python directly
-python main.py
+python -m app.main
 ```
 
 Server will be available at: **http://localhost:8000**
@@ -69,51 +69,27 @@ Server will be available at: **http://localhost:8000**
 
 ```
 backend/
-├── app/                          # Main application package
-│   ├── models/                   # SQLAlchemy ORM models
-│   │   ├── user.py              # User model with relationships
-│   │   ├── post.py              # Post model
-│   │   ├── comment.py           # Comment model
-│   │   ├── follow.py            # Follow/social graph model
-│   │   ├── bookmark.py          # Bookmark model
-│   │   └── __init__.py          # Export all models
-│   │
-│   ├── schemas/                  # Pydantic validation schemas
-│   │   ├── user.py              # User request/response schemas
-│   │   ├── post.py              # Post schemas
-│   │   ├── comment.py           # Comment schemas
-│   │   ├── follow.py            # Follow schemas
-│   │   └── __init__.py
-│   │
-│   ├── routers/                  # API route handlers
-│   │   ├── posts.py             # POST CRUD endpoints
-│   │   ├── comments.py          # Comment endpoints
-│   │   ├── follow.py            # Follow/unfollow endpoints
-│   │   ├── feed.py              # Personalized feed endpoint
-│   │   └── __init__.py
-│   │
-│   ├── dependencies/             # Reusable dependencies
-│   │   ├── auth.py              # JWT authentication
-│   │   └── __init__.py
-│   │
-│   ├── database.py              # Database connection & session
-│   ├── main.py                  # FastAPI app initialization
-│   └── __init__.py
-│
-├── main.py                       # Entry point
-├── requirements.txt              # Python dependencies
-├── .env.example                 # Example environment variables
-└── API_DOCUMENTATION.md         # Full API reference
+  app/
+    __init__.py
+    main.py
+    core/       # config.py, security.py, exceptions.py
+    db/         # base.py, session.py, init/ (existing SQL scripts)
+    modules/    # auth, users, posts, comments, feed, moderation, notifications
+  alembic/
+  scripts/
+  tests/
+  pyproject.toml
+  Dockerfile
 ```
 
 ## Key Components
 
-### Database (app/database.py)
+### Database (app/db/session.py)
 - SQLAlchemy engine and session factory
 - Dependency injection via `get_db()`
 - Uses Microsoft SQL Server via `pyodbc` and ODBC Driver 18
 
-### Models (app/models/)
+### Models (app/modules/*/models.py)
 - **User**: Stores user credentials and profile
 - **Post**: Blog posts/discussions
 - **Comment**: Replies to posts
@@ -125,17 +101,17 @@ All models have:
 - Timestamps (created_at, updated_at)
 - Foreign key relationships with cascade deletes
 
-### Schemas (app/schemas/)
+### Schemas (app/modules/*/schemas.py)
 - Pydantic v2 models for request/response validation
 - Automatic OpenAPI documentation
 - Type safety and data validation
 
-### Authentication (app/dependencies/auth.py)
+### Authentication (app/modules/auth/dependencies.py)
 - JWT token generation and validation
 - OAuth2PasswordBearer scheme
 - `get_current_user()` dependency for protected endpoints
 
-### Routers (app/routers/)
+### Routers (app/modules/*/router.py)
 - **posts.py**: Create, read, update, delete posts
 - **comments.py**: Comment management
 - **follow.py**: Follow/unfollow users and lists
@@ -235,7 +211,7 @@ FRONTEND_URL=https://your-frontend.vercel.app
 ```bash
 pip install gunicorn
 
-gunicorn -w 4 -k uvicorn.workers.UvicornWorker main:app --bind 0.0.0.0:8000
+gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:8000
 ```
 
 ### 3. Using Docker
@@ -249,7 +225,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
 ```bash
@@ -263,7 +239,7 @@ docker run -p 8000:8000 forum-api
 DATABASE_URL=mssql+pyodbc://user:password@server:1433/StudentForum?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=yes&TrustServerCertificate=yes
 
 # Create missing tables and run upgrade script
-python setup_local_db.py --wait 90
+python -m scripts.setup_local_db --wait 90
 ```
 
 ## Troubleshooting
