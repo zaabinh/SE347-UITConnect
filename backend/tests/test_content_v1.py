@@ -188,6 +188,48 @@ def test_patch_rejects_mixed_known_and_unknown_fields_without_persisting(api):
     assert persisted.status == 'active'
 
 
+@pytest.mark.parametrize('content', [' ', '\t\r\n'])
+def test_whitespace_comment_rejected_before_writes_and_listing_stays_valid(api, content):
+    client, db, post, *_ = api
+    path = f'/api/v1/posts/{post.id}/comments'
+    with TestClient(client.app, raise_server_exceptions=False) as http:
+        response = http.post(path, json={'content': content})
+    assert response.status_code == 422
+    assert db.query(Comment).count() == db.query(Notification).count() == 0
+    assert db.query(Post).count() == 1
+    response = client.get(path)
+    assert response.status_code == 200 and response.json() == []
+
+
+@pytest.mark.parametrize('method', ['POST', 'PATCH'])
+@pytest.mark.parametrize('title', ['  abc  ', '     '])
+def test_short_title_after_trim_rejected_before_writes(api, method, title):
+    client, db, post, owner, _, _, selected = api
+    selected[0] = owner
+    path = '/api/v1/posts' if method == 'POST' else f'/api/v1/posts/{post.id}'
+    payload = {'title': title, 'content': 'Body'}
+    with TestClient(client.app, raise_server_exceptions=False) as http:
+        response = http.request(method, path, json=payload)
+    assert response.status_code == 422
+    db.expire_all()
+    assert db.query(Post).count() == 1
+    assert db.query(Comment).count() == db.query(Notification).count() == 0
+    assert db.get(Post, post.id).title == 'Original post'
+    assert db.get(Post, post.id).status == 'active'
+    assert client.get(f'/api/v1/posts/{post.id}').status_code == 200
+
+
+def test_valid_titles_and_comment_content_are_trimmed(api):
+    client, _, post, _, _, admin, selected = api
+    selected[0] = admin
+    created = client.post('/api/v1/posts', json={'title': '  Valid title  ', 'content': 'Body'})
+    assert created.status_code == 201 and created.json()['title'] == 'Valid title'
+    updated = client.patch(f"/api/v1/posts/{created.json()['id']}", json={'title': '  Edited title  '})
+    assert updated.status_code == 200 and updated.json()['title'] == 'Edited title'
+    comment = client.post(f'/api/v1/posts/{post.id}/comments', json={'content': '  Valid comment  '})
+    assert comment.status_code == 201 and comment.json()['content'] == 'Valid comment'
+
+
 def test_repeat_share_has_unique_slug_and_bounded_title(api):
     client, db, post, *_ = api
     post.title = 'A' * 255
