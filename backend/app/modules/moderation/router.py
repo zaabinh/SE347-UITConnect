@@ -1,16 +1,13 @@
-from datetime import datetime
-
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
-from app.core.schemas import PaginationMeta
+from app.core.schemas import PaginationMeta, UtcDateTime
 from app.db.session import get_db
 from app.modules.auth.dependencies import require_role
-from app.modules.auth.schemas import MessageResponse
 from app.modules.moderation import application
-from app.modules.moderation.schemas import ReportModerate, ReportResponse
-from app.modules.posts.tag_schemas import TagCreate, TagResponse, TagUpdate
+from app.modules.moderation.schemas import ModerateReportRequest, ReportResponse, ModeratePostRequest, BanUserRequest
+from app.modules.posts.tag_schemas import CreateTagRequest, TagResponse, UpdateTagRequest
 from app.modules.users.models import User
 
 
@@ -26,7 +23,7 @@ class AdminUserResponse(BaseModel):
     full_name: str
     role: str
     status: str
-    created_at: datetime
+    created_at: UtcDateTime
 
 
 class AdminUsersListResponse(BaseModel):
@@ -45,7 +42,7 @@ class AdminPostModerationResponse(BaseModel):
     title: str
     status: str
     requested_new_tags: list[str] = []
-    created_at: datetime
+    created_at: UtcDateTime
 
 
 class AdminPostsListResponse(BaseModel):
@@ -66,7 +63,7 @@ class AdminAnalyticsResponse(BaseModel):
     pending_posts: int
 
 
-@router.get("/users", response_model=AdminUsersListResponse)
+@router.get("/users", response_model=AdminUsersListResponse, operation_id="admin_list_users")
 def list_users(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
@@ -80,17 +77,17 @@ def list_users(
     return AdminUsersListResponse(**application.list_users(db, page, page_size, search, status_filter, sort_by, sort_order))
 
 
-@router.post("/users/{user_id}/ban", response_model=AdminUserResponse)
+@router.put("/users/{user_id}/ban", response_model=AdminUserResponse, operation_id="admin_ban_user")
 def ban_user(
     user_id: str,
-    reason: str | None = Query(default=None),
+    payload: BanUserRequest,
     current_user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
-    return application.ban_user(db, current_user, user_id, reason)
+    return application.ban_user(db, current_user, user_id, payload.reason)
 
 
-@router.post("/users/{user_id}/unban", response_model=AdminUserResponse)
+@router.delete("/users/{user_id}/ban", response_model=AdminUserResponse, operation_id="admin_unban_user")
 def unban_user(
     user_id: str,
     reason: str | None = Query(default=None),
@@ -100,7 +97,7 @@ def unban_user(
     return application.unban_user(db, current_user, user_id, reason)
 
 
-@router.get("/reports", response_model=AdminReportsListResponse)
+@router.get("/reports", response_model=AdminReportsListResponse, operation_id="admin_list_reports")
 def list_reports(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
@@ -112,17 +109,17 @@ def list_reports(
     return AdminReportsListResponse(**application.list_reports(db, page, page_size, status_filter, reason))
 
 
-@router.post("/reports/{report_id}/moderate", response_model=ReportResponse)
+@router.put("/reports/{report_id}/moderation", response_model=ReportResponse, operation_id="admin_moderate_report")
 def moderate_report(
     report_id: int,
-    payload: ReportModerate,
+    payload: ModerateReportRequest,
     current_user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     return application.moderate_report(db, current_user, report_id, payload)
 
 
-@router.get("/posts/pending", response_model=AdminPostsListResponse)
+@router.get("/posts/pending", response_model=AdminPostsListResponse, operation_id="admin_list_pending_posts")
 def list_pending_posts(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
@@ -132,27 +129,17 @@ def list_pending_posts(
     return AdminPostsListResponse(**application.list_pending_posts(db, page, page_size))
 
 
-@router.post("/posts/{post_id}/approve", response_model=MessageResponse)
-def approve_post(
+@router.put("/posts/{post_id}/moderation", response_model=AdminPostModerationResponse, operation_id="admin_moderate_post")
+def moderate_post(
     post_id: int,
+    payload: ModeratePostRequest,
     current_user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
-    application.approve_post(db, current_user, post_id)
-    return MessageResponse(message="Post approved successfully.")
+    return application.moderate_post(db, current_user, post_id, payload.status)
 
 
-@router.post("/posts/{post_id}/reject", response_model=MessageResponse)
-def reject_post(
-    post_id: int,
-    current_user: User = Depends(require_role("admin")),
-    db: Session = Depends(get_db),
-):
-    application.reject_post(db, current_user, post_id)
-    return MessageResponse(message="Post rejected successfully.")
-
-
-@router.get("/analytics/overview", response_model=AdminAnalyticsResponse)
+@router.get("/analytics/overview", response_model=AdminAnalyticsResponse, operation_id="admin_get_analytics")
 def analytics_overview(
     current_user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
@@ -160,7 +147,7 @@ def analytics_overview(
     return AdminAnalyticsResponse(**application.analytics_overview(db))
 
 
-@router.get("/tags", response_model=list[TagResponse])
+@router.get("/tags", response_model=list[TagResponse], operation_id="admin_list_tags")
 def list_tags(
     current_user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
@@ -168,30 +155,30 @@ def list_tags(
     return application.list_tags(db)
 
 
-@router.post("/tags", response_model=TagResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/tags", response_model=TagResponse, status_code=status.HTTP_201_CREATED, operation_id="admin_create_tag")
 def create_tag(
-    payload: TagCreate,
+    payload: CreateTagRequest,
     current_user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     return application.create_tag(db, payload)
 
 
-@router.put("/tags/{tag_id}", response_model=TagResponse)
+@router.patch("/tags/{tag_id}", response_model=TagResponse, operation_id="admin_update_tag")
 def update_tag(
     tag_id: int,
-    payload: TagUpdate,
+    payload: UpdateTagRequest,
     current_user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     return application.update_tag(db, tag_id, payload)
 
 
-@router.delete("/tags/{tag_id}", response_model=MessageResponse)
+@router.delete("/tags/{tag_id}", status_code=204, operation_id="admin_delete_tag")
 def delete_tag(
     tag_id: int,
     current_user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     application.delete_tag(db, tag_id)
-    return MessageResponse(message="Tag deleted successfully.")
+    return Response(status_code=204)
