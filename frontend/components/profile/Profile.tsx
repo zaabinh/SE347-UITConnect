@@ -172,7 +172,7 @@ export default function Profile() {
         setComments(userComments);
 
         if (userProfile.is_current_user) {
-          const savedPosts = await getUserBookmarks(username);
+          const savedPosts = await getUserBookmarks();
           if (isMounted) {
             setProfile((prev) => (prev ? { ...prev, id: myProfile.id } : prev));
             setBookmarks(savedPosts.filter((post) => post.status !== 'deleted'));

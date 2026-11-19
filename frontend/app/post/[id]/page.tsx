@@ -2,14 +2,14 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Sidebar from '@/components/layout/Sidebar';
 import Topbar from '@/components/layout/Topbar';
 import AuthorCard from '@/components/post/AuthorCard';
 import PostDetail from '@/components/post/PostDetail';
 import RelatedPosts from '@/components/post/RelatedPosts';
 import { fetchCurrentUser } from '@/lib/axios';
-import { getFeed, getPost, toggleBookmark, togglePostLike, getSimilarPosts } from '@/lib/forumApi';
+import { getFeed, getPost, toggleBookmark, togglePostLike, getSimilarPosts, recordPostView } from '@/lib/forumApi';
 import { useI18n } from '@/lib/i18n';
 import { getUserProfile } from '@/lib/profileApi';
 import { useAuthGuard } from '@/lib/useAuthGuard';
@@ -77,6 +77,13 @@ export default function PostDetailPage() {
   const [bookmarked, setBookmarked] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const postId = Number(params.id);
+  const viewedPostId = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!post || post.id !== postId || viewedPostId.current === postId) return;
+    viewedPostId.current = postId;
+    void recordPostView(postId).catch(() => {});
+  }, [post, postId]);
 
   useEffect(() => {
     if (!Number.isFinite(postId)) {
@@ -207,7 +214,7 @@ export default function PostDetailPage() {
       const next = !liked;
       setLiked(next);
       setPost((prev) => (prev ? { ...prev, likes: next ? prev.likes + 1 : Math.max(0, prev.likes - 1), trendingScore: next ? prev.trendingScore + 4 : Math.max(0, prev.trendingScore - 4) } : prev));
-      void togglePostLike(id).catch(() => {
+      void togglePostLike(id, next).catch(() => {
         setLiked(!next);
         setPost((prev) => (prev ? { ...prev, likes: next ? Math.max(0, prev.likes - 1) : prev.likes + 1, trendingScore: next ? Math.max(0, prev.trendingScore - 4) : prev.trendingScore + 4 } : prev));
       });
@@ -220,7 +227,7 @@ export default function PostDetailPage() {
     (id: number) => {
       const next = !bookmarked;
       setBookmarked(next);
-      void toggleBookmark(id).catch(() => {
+      void toggleBookmark(id, next).catch(() => {
         setBookmarked(!next);
       });
       return next;

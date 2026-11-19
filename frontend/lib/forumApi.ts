@@ -4,14 +4,11 @@ import { api } from '@/lib/axios';
 
 export type ApiAuthor = {
   id: string;
-  username: string;
-  email: string;
+  username: string | null;
   full_name: string;
   avatar_url: string | null;
   bio: string | null;
   role: string;
-  status: string;
-  provider: string;
 };
 
 export type ApiPost = {
@@ -129,7 +126,7 @@ export async function getFeed(params: {
   mode?: 'for-you' | 'following' | 'trending';
   sort?: 'latest' | 'trending' | 'most-liked' | 'most-commented';
 }) {
-  const response = await api.get<FeedResponse>('/api/posts/feed', {
+  const response = await api.get<FeedResponse>('/feed', {
     params: {
       page: params.page ?? 1,
       page_size: params.pageSize ?? 10,
@@ -143,7 +140,7 @@ export async function getFeed(params: {
 }
 
 export async function getPost(postId: number) {
-  const response = await api.get<ApiPost>(`/api/posts/${postId}`);
+  const response = await api.get<ApiPost>(`/posts/${postId}`);
   return response.data;
 }
 
@@ -153,7 +150,7 @@ export async function createPost(payload: {
   cover_image?: string;
   tags: string[];
 }) {
-  const response = await api.post<ApiPost>('/api/posts/', payload);
+  const response = await api.post<ApiPost>('/posts', payload);
   return response.data;
 }
 
@@ -162,31 +159,42 @@ export async function updatePost(
   payload: Partial<{
     title: string;
     content: string;
-    cover_image: string;
+    cover_image: string | null;
     tags: string[];
   }>
 ) {
-  const response = await api.put<ApiPost>(`/api/posts/${postId}`, payload);
+  const response = await api.patch<ApiPost>(`/posts/${postId}`, payload);
   return response.data;
 }
 
 export async function deletePost(postId: number) {
-  const response = await api.delete<{ message: string }>(`/api/posts/${postId}`);
-  return response.data;
+  await api.delete<void>(`/posts/${postId}`);
 }
 
-export async function togglePostLike(postId: number) {
-  const response = await api.post<{ message: string }>(`/api/posts/${postId}/like`);
-  return response.data;
+export async function togglePostLike(postId: number, liked: boolean) {
+  if (liked) {
+    await api.put(`/posts/${postId}/likes/me`);
+  } else {
+    await api.delete<void>(`/posts/${postId}/likes/me`);
+  }
 }
 
-export async function toggleBookmark(postId: number) {
-  const response = await api.post<{ message: string }>(`/api/posts/${postId}/bookmark`);
-  return response.data;
+export async function toggleBookmark(postId: number, bookmarked: boolean) {
+  if (bookmarked) {
+    await api.put(`/posts/${postId}/bookmarks/me`);
+  } else {
+    await api.delete<void>(`/posts/${postId}/bookmarks/me`);
+  }
 }
+
+export async function recordPostView(postId: number) {
+  await api.post<void>(`/posts/${postId}/views`);
+}
+
+export type SharePostResponse = { post_id: number; original_post_id: number };
 
 export async function sharePost(postId: number) {
-  const response = await api.post<{ message: string }>(`/api/posts/${postId}/share`);
+  const response = await api.post<SharePostResponse>(`/posts/${postId}/shares`);
   return response.data;
 }
 
@@ -196,17 +204,17 @@ export async function sharePostWithEdit(
     caption?: string;
   }
 ) {
-  const response = await api.post<{ message: string }>(`/api/posts/${postId}/share`, payload);
+  const response = await api.post<SharePostResponse>(`/posts/${postId}/shares`, payload);
   return response.data;
 }
 
 export async function getComments(postId: number) {
-  const response = await api.get<ApiComment[]>(`/api/posts/${postId}/comments/`);
+  const response = await api.get<ApiComment[]>(`/posts/${postId}/comments`);
   return response.data;
 }
 
 export async function createComment(postId: number, payload: { content: string; parent_id?: number | null }) {
-  const response = await api.post<ApiComment>(`/api/posts/${postId}/comments/`, payload);
+  const response = await api.post<ApiComment>(`/posts/${postId}/comments`, payload);
   return response.data;
 }
 
@@ -226,7 +234,7 @@ export type ReportResponse = {
 };
 
 export async function reportPost(postId: number, payload: { reason: ReportReason; details?: string | null }) {
-  const response = await api.post<ReportResponse>(`/api/posts/${postId}/report`, {
+  const response = await api.post<ReportResponse>(`/posts/${postId}/reports`, {
     reason: payload.reason,
     details: payload.details || null,
   });
@@ -234,7 +242,7 @@ export async function reportPost(postId: number, payload: { reason: ReportReason
 }
 
 export async function reportComment(postId: number, commentId: number, payload: { reason: ReportReason; details?: string | null }) {
-  const response = await api.post<ReportResponse>(`/api/posts/${postId}/comments/${commentId}/report`, {
+  const response = await api.post<ReportResponse>(`/posts/${postId}/comments/${commentId}/reports`, {
     reason: payload.reason,
     details: payload.details || null,
   });
@@ -242,7 +250,7 @@ export async function reportComment(postId: number, commentId: number, payload: 
 }
 
 export async function getTags() {
-  const response = await api.get<Array<{ id: number; name: string; slug: string }>>('/api/posts/tags');
+  const response = await api.get<Array<{ id: number; name: string; slug: string }>>('/tags');
   return response.data;
 }
 
@@ -250,7 +258,7 @@ export async function getSimilarPosts(postId: number, params?: {
   limit?: number;
   min_similarity?: number;
 }) {
-  const response = await api.get<SimilarPostsResponse>(`/api/posts/${postId}/similar`, {
+  const response = await api.get<SimilarPostsResponse>(`/recommendations/posts/${postId}/similar`, {
     params: {
       limit: params?.limit ?? 5,
       min_similarity: params?.min_similarity ?? 0.1,
@@ -265,7 +273,7 @@ export async function getCollaborativeRecommendations(params?: {
   min_similarity?: number;
   daysBack?: number;
 }) {
-  const response = await api.get<CollaborativePostsResponse>('/api/posts/recommendations/collaborative', {
+  const response = await api.get<CollaborativePostsResponse>('/recommendations/collaborative', {
     params: {
       page: params?.page ?? 1,
       page_size: params?.pageSize ?? 10,
@@ -282,7 +290,7 @@ export async function getProfileBasedRecommendations(params?: {
   min_score?: number;
   daysBack?: number;
 }) {
-  const response = await api.get<ProfileBasedPostsResponse>('/api/posts/recommendations/profile', {
+  const response = await api.get<ProfileBasedPostsResponse>('/recommendations/profile', {
     params: {
       page: params?.page ?? 1,
       page_size: params?.pageSize ?? 10,
@@ -294,11 +302,11 @@ export async function getProfileBasedRecommendations(params?: {
 }
 
 export async function getUserProfileSummary() {
-  const response = await api.get<UserProfileSummary>('/api/posts/profile/summary');
+  const response = await api.get<UserProfileSummary>('/recommendations/profile-summary');
   return response.data;
 }
 
 export async function getProfileAnalysis() {
-  const response = await api.get<ProfileAnalysis>('/api/posts/profile/analysis');
+  const response = await api.get<ProfileAnalysis>('/recommendations/profile-analysis');
   return response.data;
 }

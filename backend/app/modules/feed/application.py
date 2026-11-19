@@ -116,7 +116,7 @@ def get_trending_tags_endpoint(db, current_user, limit=10, hours=24):
 
     return {
         "items": trending_tags,
-        "updated_at": datetime.utcnow().isoformat()
+        "updated_at": datetime.utcnow()
     }
 
 
@@ -165,7 +165,7 @@ def get_similar_posts_endpoint(db, current_user, post_id, limit=5, min_similarit
             "page": 1,
             "page_size": len(items),
             "total": len(items),
-            "total_pages": 1,
+            "total_pages": 1 if items else 0,
         },
     }
 

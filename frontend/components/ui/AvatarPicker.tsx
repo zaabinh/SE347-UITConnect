@@ -2,10 +2,13 @@
 
 import { useRef, useState } from 'react';
 import { FiUpload, FiX, FiCamera } from 'react-icons/fi';
+import { getErrorDetail } from '@/lib/axios';
+import { uploadImage } from '@/lib/mediaApi';
 
 interface AvatarPickerProps {
   value: string;
   onChange: (url: string) => void;
+  onUploadingChange?: (uploading: boolean) => void;
 }
 
 const AVATAR_PRESETS = [
@@ -19,22 +22,30 @@ const AVATAR_PRESETS = [
   'https://api.dicebear.com/7.x/avataaars/svg?seed=Nova',
 ];
 
-export default function AvatarPicker({ value, onChange }: AvatarPickerProps) {
+export default function AvatarPicker({ value, onChange, onUploadingChange }: AvatarPickerProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showPresets, setShowPresets] = useState(false);
   const [customUrl, setCustomUrl] = useState(value);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const dataUrl = e.target?.result as string;
-        onChange(dataUrl);
-        setCustomUrl(dataUrl);
+      setUploading(true);
+      onUploadingChange?.(true);
+      setUploadError('');
+      try {
+        const url = await uploadImage(file);
+        onChange(url);
+        setCustomUrl(url);
         setShowPresets(false);
-      };
-      reader.readAsDataURL(file);
+      } catch (error) {
+        setUploadError(getErrorDetail(error, 'Unable to upload avatar.'));
+      } finally {
+        setUploading(false);
+        onUploadingChange?.(false);
+      }
     }
   };
 
@@ -87,7 +98,7 @@ export default function AvatarPicker({ value, onChange }: AvatarPickerProps) {
           className="flex flex-col items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
         >
           <FiCamera className="h-5 w-5" />
-          <span>Upload photo</span>
+          <span>{uploading ? 'Uploading...' : 'Upload photo'}</span>
         </button>
 
         {/* Choose from presets */}
@@ -161,11 +172,13 @@ export default function AvatarPicker({ value, onChange }: AvatarPickerProps) {
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png"
+        disabled={uploading}
         onChange={handleFileChange}
         className="hidden"
         aria-label="Upload avatar from file"
       />
+      {uploadError ? <p role="alert" className="text-sm text-rose-600">{uploadError}</p> : null}
     </div>
   );
 }

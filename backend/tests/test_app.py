@@ -1,4 +1,5 @@
 import json
+from http import HTTPStatus
 from pathlib import Path
 from unittest.mock import MagicMock, Mock
 
@@ -13,6 +14,16 @@ from app.core.config import settings
 from app.db.base import Base
 from app.db.session import engine
 from app.main import app
+
+
+def assert_problem(response, status, detail, code):
+    assert response.status_code == status
+    assert response.headers['content-type'] == 'application/problem+json'
+    assert response.json() == {
+        'type': 'about:blank', 'title': HTTPStatus(status).phrase,
+        'status': status, 'detail': detail, 'instance': response.request.url.path,
+        'code': code, 'request_id': response.headers['X-Request-ID'],
+    }
 
 
 @pytest.fixture
@@ -56,7 +67,7 @@ def test_factory_creates_independent_apps_without_io(monkeypatch):
     assert first is not second
     assert first.debug is False
     assert first.openapi()["paths"] == second.openapi()["paths"]
-    assert len(first.user_middleware) == len(second.user_middleware) == 1
+    assert len(first.user_middleware) == len(second.user_middleware) == 2
     first.add_api_route("/only-first", lambda: {})
     assert "/only-first" not in second.openapi()["paths"]
     connect.assert_not_called()
@@ -74,7 +85,7 @@ def test_startup_health_and_openapi(runtime_app):
         assert client.get("/health").json()["status"] == "healthy"
         assert client.get("/").status_code == 200
         assert client.get("/openapi.json").status_code == 200
-        response = client.get("/api/posts/feed")
+        response = client.get("/api/v1/feed")
         assert response.status_code == 401
         assert response.json()["detail"] == "Authentication credentials were not provided."
     database.dispose.assert_called_once_with()
@@ -108,15 +119,15 @@ def test_http_errors_keep_status_detail_and_headers(runtime_app):
     with TestClient(application) as client:
         response = client.get("/test-rate-limit")
         assert response.status_code == 429
-        assert response.json() == {"detail": "Try again later."}
+        assert_problem(response, 429, 'Try again later.', 'RATE_LIMITED')
         assert response.headers["Retry-After"] == "30"
-        assert client.get("/missing").json() == {"detail": "Not Found"}
+        assert_problem(client.get('/missing'), 404, 'Not Found', 'NOT_FOUND')
 
 
 def test_validation_errors_do_not_echo_credentials(runtime_app):
     application, _, _ = runtime_app
     with TestClient(application) as client:
-        response = client.post("/auth/register", json={
+        response = client.post("/api/v1/auth/register", json={
             "username": "valid-user",
             "email": "invalid-private-email",
             "password": "s3cr!",
@@ -125,7 +136,10 @@ def test_validation_errors_do_not_echo_credentials(runtime_app):
     assert response.status_code == 422
     assert "invalid-private-email" not in response.text
     assert "s3cr!" not in response.text
-    for error in response.json()["detail"]:
+    assert response.headers['content-type'] == 'application/problem+json'
+    assert response.json()['detail'] == 'Request validation failed.'
+    assert response.json()['request_id'] == response.headers['X-Request-ID']
+    for error in response.json()["errors"]:
         assert set(error) == {"loc", "msg", "type"}
 
 
@@ -141,7 +155,7 @@ def test_unhandled_errors_are_generic_logged_and_respect_cors(runtime_app, caplo
     with TestClient(application, raise_server_exceptions=False) as client:
         response = client.get("/test-internal-error", headers={"Origin": origin})
     assert response.status_code == 500
-    assert response.json() == {"detail": "Internal server error."}
+    assert_problem(response, 500, 'Internal server error.', 'INTERNAL_ERROR')
     assert "private internal information" not in response.text
     assert any(record.exc_info for record in caplog.records if "Unhandled error" in record.message)
     if origin in settings.cors_allowed_origins:
@@ -156,10 +170,29 @@ def test_cors_preflight_is_registered(runtime_app):
     application, _, _ = runtime_app
     origin = settings.cors_allowed_origins[0]
     with TestClient(application) as client:
-        response = client.options("/api/posts/feed", headers={
+        response = client.options("/api/v1/feed", headers={
             "Origin": origin,
             "Access-Control-Request-Method": "GET",
             "Access-Control-Request-Headers": "Authorization",
         })
     assert response.status_code == 200
     assert response.headers["Access-Control-Allow-Origin"] == origin
+
+
+@pytest.mark.parametrize("trusted", [True, False])
+def test_oversized_upload_problem_preserves_configured_cors(runtime_app, trusted):
+    application, _, _ = runtime_app
+    origin = settings.cors_allowed_origins[0] if trusted else "https://untrusted.example"
+    with TestClient(application) as client:
+        response = client.post("/api/v1/media/images", content=b"", headers={
+            "Origin": origin,
+            "Content-Length": str(6 * 1024 * 1024 + 1),
+        })
+    assert_problem(response, 413, "Upload request exceeds 6 MiB.", "PAYLOAD_TOO_LARGE")
+    if trusted:
+        assert response.headers["Access-Control-Allow-Origin"] == origin
+        assert response.headers["Access-Control-Allow-Credentials"] == "true"
+        assert "X-Request-ID" in response.headers["Access-Control-Expose-Headers"]
+        assert "Origin" in response.headers["Vary"]
+    else:
+        assert "Access-Control-Allow-Origin" not in response.headers

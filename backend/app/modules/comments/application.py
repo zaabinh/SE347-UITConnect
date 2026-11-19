@@ -6,6 +6,7 @@ from app.modules.comments.models import Comment
 from app.modules.moderation.models import Report
 from app.modules.notifications.service import create_notification, notify_admins
 from app.modules.moderation.service import normalize_report_reason
+from app.modules.posts.domain import require_visible
 
 
 def build_comment_tree(comments) -> list[Comment]:
@@ -21,11 +22,15 @@ def build_comment_tree(comments) -> list[Comment]:
 
 def create_comment(post_id, payload, db, current_user):
     repo = CommentRepository(db)
-    with UnitOfWork(db):
+    with UnitOfWork(db) as uow:
+        uow.lock(f'post:{post_id}')
         post = require_found(repo.post(post_id), 'Post')
+        require_visible(post, current_user)
         parent_comment = None
         if payload.parent_id is not None:
             parent_comment = require_found(repo.comment(post_id, payload.parent_id), 'Parent comment')
+            if parent_comment.status != 'active':
+                require_found(None, 'Parent comment')
         comment = Comment(post_id=post_id, user_id=current_user.id, content=payload.content.strip(), parent_id=payload.parent_id)
         repo.add(comment)
         if post.user_id != current_user.id:
@@ -41,15 +46,21 @@ def create_comment(post_id, payload, db, current_user):
 
 def get_comments(post_id, db, current_user):
     repo = CommentRepository(db)
-    _ = current_user.id
+    post = require_found(repo.post(post_id), 'Post')
+    require_visible(post, current_user)
     comments = repo.active_comments(post_id)
     return build_comment_tree(comments)
 
 
 def report_comment(post_id, comment_id, payload, db, current_user):
     repo = CommentRepository(db)
-    with UnitOfWork(db):
+    with UnitOfWork(db) as uow:
+        uow.lock(f'post:{post_id}')
+        post = require_found(repo.post(post_id), 'Post')
+        require_visible(post, current_user)
         comment = require_found(repo.comment(post_id, comment_id), 'Comment')
+        if comment.status != 'active':
+            require_found(None, 'Comment')
         require_unreported(repo.reported(current_user.id, comment_id))
         report = Report(reporter_id=current_user.id, post_id=post_id, comment_id=comment_id, reason=normalize_report_reason(payload.reason), details=payload.details.strip() if payload.details else None)
         repo.add(report)

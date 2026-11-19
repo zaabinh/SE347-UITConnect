@@ -1,12 +1,14 @@
-from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
+from app.core.schemas import UtcDateTime
 
 
-class TagCreate(BaseModel):
+class CreateTagRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
 
 
-class TagUpdate(BaseModel):
+class UpdateTagRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str = Field(..., min_length=1, max_length=100)
 
 
@@ -16,4 +18,8 @@ class TagResponse(BaseModel):
     id: int
     name: str
     slug: str
-    created_at: datetime
+    created_at: UtcDateTime
+
+
+TagCreate = CreateTagRequest
+TagUpdate = UpdateTagRequest

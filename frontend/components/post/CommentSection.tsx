@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import CommentItem from '@/components/post/CommentItem';
 import { useToast } from '@/components/ui/Toast';
-import { createComment, getComments } from '@/lib/forumApi';
+import { ApiComment, createComment, getComments } from '@/lib/forumApi';
 import { CommentNode, UserProfile } from '@/lib/types';
 
 type CommentSectionProps = {
@@ -11,7 +11,7 @@ type CommentSectionProps = {
   currentUser: UserProfile | null;
 };
 
-function mapCommentNode(comment: any): CommentNode {
+function mapCommentNode(comment: ApiComment): CommentNode {
   return {
     id: comment.id,
     postId: comment.post_id,
@@ -22,8 +22,8 @@ function mapCommentNode(comment: any): CommentNode {
     likes: 0,
     author: {
       id: comment.author.id,
-      name: comment.author.full_name || comment.author.username,
-      username: comment.author.username,
+      name: comment.author.full_name || comment.author.username || comment.author.id,
+      username: comment.author.username || comment.author.id,
       avatar: comment.author.avatar_url || '/images/uit.png',
       bio: comment.author.bio || '',
       role: comment.author.role || 'Student',

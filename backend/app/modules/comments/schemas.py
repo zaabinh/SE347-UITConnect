@@ -1,14 +1,21 @@
-from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field
-from app.modules.auth.schemas import UserResponse
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from app.core.schemas import PublicUserSummary, UtcDateTime
 
 
 class CommentBase(BaseModel):
     content: str = Field(..., min_length=1)
 
 
-class CommentCreate(CommentBase):
+class CreateCommentRequest(CommentBase):
     parent_id: int | None = None
+
+    @field_validator("content", mode="before")
+    @classmethod
+    def strip_content(cls, value):
+        return value.strip() if isinstance(value, str) else value
+
+
+CommentCreate = CreateCommentRequest
 
 
 class CommentResponse(CommentBase):
@@ -19,8 +26,8 @@ class CommentResponse(CommentBase):
     user_id: str
     parent_id: int | None
     status: str = "active"
-    created_at: datetime
-    author: UserResponse
+    created_at: UtcDateTime
+    author: PublicUserSummary
     replies: list["CommentResponse"] = Field(default_factory=list)
 
 

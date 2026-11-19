@@ -80,7 +80,8 @@ def main() -> None:
         apply(test_engine, config, command.check)
         sessions = sessionmaker(test_engine)
         with sessions() as db:
-            with UnitOfWork(db):
+            with UnitOfWork(db) as uow:
+                uow.lock('migration-verification:outbox')
                 event = enqueue_email(db, 'probe@example.test', 'Outbox probe', 'Unicode: tiếng Việt')
                 db.flush()
                 event_id = event.id
@@ -91,6 +92,8 @@ def main() -> None:
             assert db.get(OutboxEvent, event_id).status == 'processed'
         assert sent[0]['idempotency_key'] == event_id and sent[0]['body'] == 'Unicode: tiếng Việt'
         print('PASS: SQL Server outbox claim/dispatch/ack and ORM schema comparison; no external email sent.')
+        from scripts.api_sqlserver_checks import verify_api
+        verify_api(test_engine)
 
         # A second migrator must fail fast while the first owns the database-scoped lock.
         with test_engine.begin() as connection:
@@ -139,12 +142,12 @@ def downgrade():
             expect_rejection(lambda: apply(test_engine, config, command.upgrade, 'head'), 'Contract migrations require')
             with test_engine.connect() as connection:
                 assert connection.execute(text('SELECT version_num FROM dbo.alembic_version')).scalar_one() == 'verification_expand'
-                assert connection.execute(text('SELECT migration_probe FROM dbo.users')).scalar_one() == 1
+                assert connection.execute(text("SELECT migration_probe FROM dbo.users WHERE username='migration_probe'")).scalar_one() == 1
             config.attributes['allow_contract'] = True
             apply(test_engine, config, command.upgrade, 'head')
             with test_engine.connect() as connection:
                 assert 'migration_probe' not in {column['name'] for column in inspect(connection).get_columns('users', schema='dbo')}
-                assert connection.execute(text('SELECT COUNT(*) FROM dbo.users')).scalar_one() == 1
+                assert connection.execute(text("SELECT COUNT(*) FROM dbo.users WHERE username='migration_probe'")).scalar_one() == 1
         print('PASS: expand/backfill/contract lifecycle, explicit contract approval and rollback on rejection.')
     finally:
         if test_engine is not None:

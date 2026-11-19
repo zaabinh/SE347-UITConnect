@@ -245,20 +245,10 @@ Frontend:
 
 Backend:
 
-- `POST /auth/register`
-- `POST /auth/login`
-- `GET /auth/me`
-- `GET /api/posts/feed`
-- `POST /api/posts/`
-- `GET /api/posts/{post_id}`
-- `POST /api/posts/{post_id}/comments/`
-- `GET /users/me/notifications`
-- `GET /api/admin/reports`
-- `POST /api/admin/reports/{report_id}/moderate`
-- `GET /api/admin/posts/pending`
-- `POST /api/admin/posts/{post_id}/approve`
-
-Xem `PROJECT_SUMMARY_vi.md` để có danh sách endpoint đầy đủ.
+REST API dùng prefix `/api/v1`. Xem [API contract](docs/API_CONTRACT.md) để có
+danh sách endpoint, DTO, phân quyền, lỗi và hướng dẫn chuyển đổi từ API cũ.
+Đây là tài liệu REST API có thẩm quyền duy nhất; OpenAPI máy đọc được sinh tại
+`/openapi.json`, Swagger UI tại `/docs` và ReDoc tại `/redoc`.
 
 ## Kiểm tra
 

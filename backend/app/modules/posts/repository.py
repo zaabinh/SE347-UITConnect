@@ -55,7 +55,7 @@ class Pagination:
 
     @property
     def total_pages(self) -> int:
-        return max(1, math.ceil(self.total / self.page_size)) if self.page_size else 1
+        return math.ceil(self.total / self.page_size) if self.page_size else 0
     
 hours_old = 12
 def build_post_query(current_user_id: str | None, search: str | None, tag: str | None, mode: str, sort: str):
@@ -174,6 +174,7 @@ def paginate_latest_posts_fast(
     total = db.execute(select(func.count()).select_from(post_ids_query.distinct().subquery())).scalar_one()
     if mode == "for-you" and current_user_id:
         candidate_ids = db.execute(post_ids_query.order_by(Post.created_at.desc(), Post.id.desc()).limit(200)).scalars().all()
+        total = len(candidate_ids)
         if candidate_ids:
             user = db.query(User).filter(User.id == current_user_id).first()
             preferred_tags = _parse_interest_tags(user.interest_tags if user else None)
@@ -291,6 +292,7 @@ def paginate_trending_posts_fast(
 
     total = db.execute(select(func.count()).select_from(post_ids_query.distinct().subquery())).scalar_one()
     candidate_ids = db.execute(post_ids_query.order_by(Post.created_at.desc(), Post.id.desc()).limit(300)).scalars().all()
+    total = len(candidate_ids)
     if not candidate_ids:
         return [], Pagination(page=page, page_size=page_size, total=total)
 

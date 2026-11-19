@@ -25,8 +25,13 @@ export default function FollowButton({ userId, isFollowing, onToggle }: FollowBu
 
     setLoading(true);
     try {
-      const response = isFollowing ? await unfollowUser(userId) : await followUser(userId);
-      onToggle(response.following);
+      const nextFollowing = !isFollowing;
+      if (nextFollowing) {
+        await followUser(userId);
+      } else {
+        await unfollowUser(userId);
+      }
+      onToggle(nextFollowing);
     } finally {
       setLoading(false);
     }

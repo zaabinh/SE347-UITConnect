@@ -88,7 +88,7 @@ def test_share_failure_rolls_back_post_tags_share_and_notifications(posts_db, mo
         def invalid_response(**kwargs):
             db.flush()
             raise RuntimeError("injected response failure")
-        monkeypatch.setattr(application, "MessageResponse", invalid_response)
+        monkeypatch.setattr(application, "SharePostResponse", invalid_response)
     else:
         def reject_commit(_):
             raise RuntimeError("injected commit failure")
@@ -107,7 +107,7 @@ def test_share_success_commits_once_with_tags_and_both_notifications(posts_db):
     response = application.share_post(db, sharer, post.id, SharePostRequest(caption=" Caption "))
 
     assert commits == [True]
-    shared = db.get(Post, int(response.message.rsplit("/", 1)[1]))
+    shared = db.get(Post, response.post_id)
     assert shared.original_post_id == post.id
     assert shared.status == "active"
     assert shared.share_caption == "Caption"
@@ -123,7 +123,7 @@ def test_share_success_commits_once_with_tags_and_both_notifications(posts_db):
 def test_student_share_stays_pending_and_notifies_original_author(posts_db):
     db, author, _, follower, post = posts_db
     response = application.share_post(db, follower, post.id)
-    shared = db.get(Post, int(response.message.rsplit("/", 1)[1]))
+    shared = db.get(Post, response.post_id)
     assert shared.status == "pending"
     assert [(notice.type, notice.user_id) for notice in db.query(Notification).all()] == [("post_share", author.id)]
 
@@ -144,7 +144,10 @@ def test_create_and_detail_include_persisted_tags_and_view_count(posts_db):
     assert created.tags == ["new-tag"]
     assert created.status == "active"
     detail = application.get_post_detail(db, sharer, created.id)
-    assert detail.views_count == 1
+    assert detail.views_count == 0
+    assert count(db, PostView) == 0
+    application.record_view(db, sharer, created.id)
+    assert application.get_post_detail(db, sharer, created.id).views_count == 1
     assert count(db, PostView) == 1
 
 
@@ -175,12 +178,16 @@ def test_post_with_comments_requires_admin_to_delete(posts_db):
     assert db.query(Notification).one().type == "post_moderation"
 
 
-def test_like_and_bookmark_toggle_both_ways(posts_db):
+def test_like_and_bookmark_are_idempotent_memberships(posts_db):
     db, _, _, follower, post = posts_db
-    application.toggle_like(db, follower, post.id)
-    application.toggle_bookmark(db, follower, post.id)
+    application.set_like(db, follower, post.id)
+    application.set_bookmark(db, follower, post.id)
+    application.set_like(db, follower, post.id)
+    application.set_bookmark(db, follower, post.id)
     assert count(db, PostLike) == count(db, Bookmark) == 1
     assert db.query(Notification).one().type == "post_like"
-    application.toggle_like(db, follower, post.id)
-    application.toggle_bookmark(db, follower, post.id)
+    application.set_like(db, follower, post.id, False)
+    application.set_bookmark(db, follower, post.id, False)
+    application.set_like(db, follower, post.id, False)
+    application.set_bookmark(db, follower, post.id, False)
     assert count(db, PostLike) == count(db, Bookmark) == 0

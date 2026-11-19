@@ -1,6 +1,6 @@
 """SQLAlchemy persistence for profiles, follows, and user activity."""
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 
 from app.db.repository import Repository
 from app.modules.comments.models import Comment
@@ -38,23 +38,25 @@ class UserRepository(Repository):
             query = query.filter(Post.status == "active")
         return query.order_by(Post.created_at.desc(), Post.id.desc()).all()
 
-    def user_comments(self, user_id):
-        return (
+    def user_comments(self, user_id, viewer):
+        query = (
             self.query(Comment, Post.title.label("post_title"))
-            .outerjoin(Post, Post.id == Comment.post_id)
-            .filter(Comment.user_id == user_id, Comment.status == "active")
-            .order_by(Comment.created_at.desc(), Comment.id.desc())
-            .all()
+            .join(Post, Post.id == Comment.post_id)
+            .filter(Comment.user_id == user_id, Comment.status == "active", Post.status != "deleted")
         )
+        if viewer.role.lower() != "admin":
+            query = query.filter(or_(Post.status == "active", Post.user_id == viewer.id))
+        return query.order_by(Comment.created_at.desc(), Comment.id.desc()).all()
 
-    def user_bookmarks(self, user_id):
-        return (
+    def user_bookmarks(self, user_id, viewer):
+        query = (
             self.query(Post)
             .join(Bookmark, Bookmark.post_id == Post.id)
             .filter(Bookmark.user_id == user_id, Post.status != "deleted")
-            .order_by(Bookmark.created_at.desc(), Post.id.desc())
-            .all()
         )
+        if viewer.role.lower() != "admin":
+            query = query.filter(or_(Post.status == "active", Post.user_id == viewer.id))
+        return query.order_by(Bookmark.created_at.desc(), Post.id.desc()).all()
 
     def follow(self, follower_id, following_id):
         return self.query(Follow).filter(

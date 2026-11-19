@@ -20,6 +20,7 @@ export default function EditProfile() {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [form, setForm] = useState({ full_name: '', bio: '', avatar_url: '' });
 
   useEffect(() => {
@@ -90,7 +91,7 @@ export default function EditProfile() {
               className="mt-6 space-y-5"
               onSubmit={async (event) => {
                 event.preventDefault();
-                if (!canSubmit || saving) {
+                if (!canSubmit || saving || uploading) {
                   return;
                 }
 
@@ -126,6 +127,7 @@ export default function EditProfile() {
                 required
               />
               <AvatarPicker
+                onUploadingChange={setUploading}
                 value={form.avatar_url}
                 onChange={(url) => setForm((prev) => ({ ...prev, avatar_url: url }))}
               />
@@ -142,7 +144,7 @@ export default function EditProfile() {
               </label>
 
               <div className="flex gap-3">
-                <Button type="submit" disabled={!canSubmit || saving}>
+                <Button type="submit" disabled={!canSubmit || saving || uploading}>
                   {saving ? 'Saving...' : 'Save changes'}
                 </Button>
                 <Button type="button" variant="outline" onClick={() => router.back()}>

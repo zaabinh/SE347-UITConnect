@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint app components lib next.config.ts",
+    "test:contract": "node --test tests/api-v1.test.cjs"
   },
   "dependencies": {
     "axios": "1.16.0",

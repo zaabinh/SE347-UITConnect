@@ -1,5 +1,7 @@
 # Application Service, transaction và outbox
 
+Hợp đồng REST API, DTO và endpoint được duy trì tại [API_CONTRACT.md](API_CONTRACT.md).
+
 Router phân tích request, xác thực người gọi, gọi ca sử dụng (use case) và định
 dạng response. `application.py` điều phối toàn bộ nghiệp vụ; `domain.py` quản lý
 các quy tắc về trạng thái và quyền; `repository.py` quản lý truy vấn SQLAlchemy

@@ -10,13 +10,13 @@ function resolveApiBaseUrl() {
   }
 
   try {
-    return new URL(value).origin;
+    return `${new URL(value).origin}/api/v1`;
   } catch {
     return undefined;
   }
 }
 
-const API_BASE_URL = resolveApiBaseUrl();
+export const API_BASE_URL = resolveApiBaseUrl();
 const ACCESS_TOKEN_KEY = 'access_token';
 const REFRESH_TOKEN_KEY = 'refresh_token';
 const USER_KEY = 'auth_user';
@@ -27,6 +27,24 @@ export type TokenResponse = {
   token_type: string;
   expires_in: number;
 };
+
+export type ProblemDetails = {
+  type: string;
+  title: string;
+  status: number;
+  detail: string;
+  instance: string;
+  code: string;
+  request_id: string;
+  errors?: Array<{ loc: Array<string | number>; msg: string; type: string }> | null;
+};
+
+export function getErrorDetail(error: unknown, fallback: string) {
+  if (axios.isAxiosError<ProblemDetails>(error) && typeof error.response?.data?.detail === 'string') {
+    return error.response.data.detail;
+  }
+  return error instanceof Error ? error.message : fallback;
+}
 
 export type AuthUser = {
   id: string;
@@ -58,6 +76,10 @@ type RetryableRequestConfig = InternalAxiosRequestConfig & {
 };
 
 let refreshPromise: Promise<string | null> | null = null;
+
+function isAnonymousAuthRequest(url?: string) {
+  return /^\/auth\/(login|register|refresh|logout|forgot-password|reset-password|verify-email|resend-verification|google\/login|google\/callback)(?:\?|$)/.test(url ?? '');
+}
 
 export function getAccessToken() {
   if (typeof window === 'undefined') {
@@ -129,7 +151,7 @@ export function clearAuthSession() {
 
 export async function fetchCurrentUser() {
   const response = await api.get<AuthUser>('/auth/me');
-  localStorage.setItem(USER_KEY, JSON.stringify(response.data));
+  saveStoredUser(response.data);
   return response.data;
 }
 
@@ -170,7 +192,9 @@ api.interceptors.request.use((config) => {
 
   const token = getAccessToken();
   config.headers = config.headers ?? {};
-  if (token) {
+  if (isAnonymousAuthRequest(config.url)) {
+    config.headers.delete('Authorization');
+  } else if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -186,9 +210,9 @@ api.interceptors.response.use(
     }
 
     const isUnauthorized = axiosError.response?.status === 401;
-    const isRefreshRequest = originalRequest.url?.includes('/auth/refresh');
+    const isAnonymousRequest = isAnonymousAuthRequest(originalRequest.url);
 
-    if (isUnauthorized && !originalRequest._retry && !isRefreshRequest) {
+    if (isUnauthorized && !originalRequest._retry && !isAnonymousRequest) {
       originalRequest._retry = true;
       const newAccessToken = await refreshAccessToken();
 

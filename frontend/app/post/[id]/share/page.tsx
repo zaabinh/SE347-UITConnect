@@ -96,7 +96,7 @@ export default function SharePostPage() {
                 try {
                   const result = await sharePostWithEdit(postId, { caption });
                   pushToast('Shared successfully');
-                  router.push(result.message || '/feed');
+                  router.push(`/post/${result.post_id}`);
                 } catch {
                   pushToast('Failed to share post');
                 }

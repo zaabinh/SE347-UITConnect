@@ -23,7 +23,7 @@ export default function LandingCollage() {
           <div>
             const <span className="text-slate-300">buildProject</span> = () =&gt; {'{'}
           </div>
-          <div className="pl-4 text-emerald-400">// ship it</div>
+          <div className="pl-4 text-emerald-400">{'// ship it'}</div>
           <div className="pl-4 text-slate-300">
             return <span className="text-yellow-300">&lt;Innovation /&gt;</span>
           </div>

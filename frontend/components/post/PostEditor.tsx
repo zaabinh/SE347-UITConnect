@@ -5,7 +5,8 @@ import Image from 'next/image';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Tag from '@/components/ui/Tag';
-import { getStoredUser } from '@/lib/axios';
+import { getErrorDetail, getStoredUser } from '@/lib/axios';
+import { uploadImage } from '@/lib/mediaApi';
 import { getTags } from '@/lib/forumApi';
 import { EditorPostDraft } from '@/lib/types';
 
@@ -32,6 +33,8 @@ export default function PostEditor({ mode, initialValue = emptyDraft, onSubmit, 
   const [draft, setDraft] = useState<EditorPostDraft>(initialValue);
   const [tagValue, setTagValue] = useState('');
   const [dbTags, setDbTags] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const deferredTagValue = useDeferredValue(tagValue);
 
@@ -116,28 +119,32 @@ export default function PostEditor({ mode, initialValue = emptyDraft, onSubmit, 
             <span className="text-sm font-medium text-slate-700">Cover image</span>
             <div className="flex flex-wrap items-center gap-3">
               <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
-                Upload image
+                {uploading ? 'Uploading...' : 'Upload image'}
               </Button>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png"
+                disabled={uploading}
                 className="hidden"
-                onChange={(event) => {
+                onChange={async (event) => {
                   const file = event.target.files?.[0];
                   if (!file) return;
-                  const reader = new FileReader();
-                  reader.onload = () => {
-                    const result = reader.result;
-                    if (typeof result === 'string') {
-                      setDraft((prev) => ({ ...prev, image: result }));
-                    }
-                  };
-                  reader.readAsDataURL(file);
+                  setUploading(true);
+                  setUploadError('');
+                  try {
+                    const url = await uploadImage(file);
+                    setDraft((prev) => ({ ...prev, image: url }));
+                  } catch (error) {
+                    setUploadError(getErrorDetail(error, 'Unable to upload image.'));
+                  } finally {
+                    setUploading(false);
+                  }
                 }}
               />
-              {draft.image ? <span className="text-xs text-slate-500">Image ready</span> : <span className="text-xs text-slate-500">Use a local file for mock preview</span>}
+              {draft.image ? <span className="text-xs text-slate-500">Image ready</span> : <span className="text-xs text-slate-500">Choose a JPEG or PNG up to 5 MiB</span>}
             </div>
+            {uploadError ? <p role="alert" className="text-sm text-rose-600">{uploadError}</p> : null}
           </div>
           <div className="space-y-3">
             <span className="text-sm font-medium text-slate-700">Tags</span>
@@ -185,7 +192,7 @@ export default function PostEditor({ mode, initialValue = emptyDraft, onSubmit, 
           <Button
             type="button"
             onClick={() => onSubmit(draft)}
-            disabled={!draft.title.trim() || draft.title.trim().length < 5 || !draft.content.trim()}
+            disabled={uploading || !draft.title.trim() || draft.title.trim().length < 5 || !draft.content.trim()}
           >
             {mode === 'create' ? 'Publish post' : 'Save changes'}
           </Button>

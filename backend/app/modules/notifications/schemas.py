@@ -1,5 +1,5 @@
-from datetime import datetime
 from pydantic import BaseModel, ConfigDict
+from app.core.schemas import UtcDateTime
 
 
 class NotificationResponse(BaseModel):
@@ -15,4 +15,4 @@ class NotificationResponse(BaseModel):
     post_id: int | None
     comment_id: int | None
     report_id: int | None
-    created_at: datetime
+    created_at: UtcDateTime
