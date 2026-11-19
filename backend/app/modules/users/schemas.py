@@ -1,11 +1,10 @@
-from datetime import datetime
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from app.core.schemas import UtcDateTime
 
-from pydantic import BaseModel, ConfigDict, Field
 
-
-class ProfileResponse(BaseModel):
+class PublicUserProfileResponse(BaseModel):
     id: str
-    username: str
+    username: str | None
     full_name: str
     avatar_url: str | None
     bio: str | None
@@ -20,21 +19,34 @@ class ProfileResponse(BaseModel):
     is_current_user: bool
 
 
-class CurrentProfileResponse(ProfileResponse):
+class CurrentUserProfileResponse(PublicUserProfileResponse):
     email: str
     role: str
     status: str
-    created_at: datetime
+    created_at: UtcDateTime
 
 
 class UpdateProfileRequest(BaseModel):
-    full_name: str
+    model_config = ConfigDict(extra="forbid")
+
+    full_name: str = Field(default=None, min_length=2, max_length=255)
     bio: str | None = None
     avatar_url: str | None = None
-    major: str | None = None
-    academic_year: str | None = None
-    career_goal: str | None = None
-    interest_tags: list[str] = Field(default_factory=list)
+    major: str | None = Field(default=None, max_length=120)
+    academic_year: str | None = Field(default=None, max_length=30)
+    career_goal: str | None = Field(default=None, max_length=200)
+    interest_tags: list[str] = Field(default_factory=list, max_length=20)
+
+    @field_validator("full_name", mode="before")
+    @classmethod
+    def strip_name(cls, value):
+        return value.strip() if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def require_changes(self):
+        if not self.model_fields_set:
+            raise ValueError("At least one profile field must be provided.")
+        return self
 
 
 class UserPostResponse(BaseModel):
@@ -45,7 +57,7 @@ class UserPostResponse(BaseModel):
     content: str
     cover_image: str | None
     status: str | None
-    created_at: datetime
+    created_at: UtcDateTime
 
 
 class UserCommentResponse(BaseModel):
@@ -53,9 +65,13 @@ class UserCommentResponse(BaseModel):
     post_id: int
     post_title: str | None
     content: str
-    created_at: datetime
+    created_at: UtcDateTime
 
 
 class FollowResponse(BaseModel):
     message: str
     following: bool
+
+
+ProfileResponse = PublicUserProfileResponse
+CurrentProfileResponse = CurrentUserProfileResponse
