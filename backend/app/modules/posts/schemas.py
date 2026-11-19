@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from app.core.schemas import PaginationMeta, PublicUserSummary, UtcDateTime
 
 
@@ -10,7 +10,10 @@ class PostBase(BaseModel):
 
 
 class CreatePostRequest(PostBase):
-    pass
+    @field_validator("title", mode="before")
+    @classmethod
+    def strip_title(cls, value):
+        return value.strip() if isinstance(value, str) else value
 
 
 class UpdatePostRequest(BaseModel):
@@ -21,6 +24,11 @@ class UpdatePostRequest(BaseModel):
     cover_image: str | None = None
     tags: list[str] = Field(default=None)
     status: str = Field(default=None, pattern="^(pending|active|rejected)$")
+
+    @field_validator("title", mode="before")
+    @classmethod
+    def strip_title(cls, value):
+        return value.strip() if isinstance(value, str) else value
 
     @model_validator(mode="after")
     def validate_patch(self):

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app.core.schemas import PublicUserSummary, UtcDateTime
 
 
@@ -8,6 +8,11 @@ class CommentBase(BaseModel):
 
 class CreateCommentRequest(CommentBase):
     parent_id: int | None = None
+
+    @field_validator("content", mode="before")
+    @classmethod
+    def strip_content(cls, value):
+        return value.strip() if isinstance(value, str) else value
 
 
 CommentCreate = CreateCommentRequest
