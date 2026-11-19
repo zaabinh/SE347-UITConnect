@@ -24,6 +24,7 @@ def require_found(entity, detail: str):
 
 
 def ban_user(target_user, current_user) -> None:
+    require_live_user(target_user)
     if target_user.id == current_user.id:
         raise ApplicationError(400, "Admin cannot ban themselves.")
     if (target_user.role or "").lower() == "admin":
@@ -32,7 +33,13 @@ def ban_user(target_user, current_user) -> None:
 
 
 def restore_user(user) -> None:
+    require_live_user(user)
     user.status = "active"
+
+
+def require_live_user(user) -> None:
+    if user.status == "deleted":
+        raise ApplicationError(404, "User not found.")
 
 
 def validate_report_action(report, status: str, action: str) -> None:
@@ -65,6 +72,8 @@ def require_target_author(user_id: str | None) -> str:
 
 
 def hide_post(post) -> None:
+    if post.status == "deleted":
+        raise ApplicationError(404, "Reported post not found.")
     post.status = "rejected"
 
 

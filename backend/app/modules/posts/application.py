@@ -12,7 +12,7 @@ from app.modules.notifications.service import create_notification, notify_admins
 from app.modules.posts import domain
 from app.modules.posts.models import Bookmark, Post, PostLike, PostShare, PostView
 from app.modules.posts.repository import PostRepository
-from app.modules.posts.schemas import PostResponse
+from app.modules.posts.schemas import PostResponse, SharePostResponse, LikeResponse, BookmarkResponse
 from app.modules.posts.service import serialize_post
 
 
@@ -20,9 +20,10 @@ def get_post_or_404(repo, post_id):
     return domain.require_post(repo.get(post_id))
 
 
-def _response(repo, post, current_user):
-    repo.flush()
-    repo.refresh(post)
+def _response(repo, post, current_user, *, persist=True):
+    if persist:
+        repo.flush()
+        repo.refresh(post)
     if post.status == "active":
         row = repo.active_row(post.id, current_user.id)
         domain.require_post(row)
@@ -43,7 +44,8 @@ def _sync_tags(repo, post, user, tags):
 
 
 def create_post(db, current_user, payload):
-    with UnitOfWork(db):
+    with UnitOfWork(db) as uow:
+        uow.lock("tags")
         repo = PostRepository(db)
         post = Post(
             user_id=current_user.id, title=payload.title.strip(),
@@ -73,7 +75,7 @@ def get_tags(db, current_user):
 
 
 def _tag_list(tags):
-    return [{"id": tag.id, "name": tag.name, "slug": tag.slug} for tag in tags]
+    return tags
 
 
 def get_all_tags(db):
@@ -88,18 +90,29 @@ def get_posts_by_tag(db, tag_slug):
 
 
 def get_post_detail(db, current_user, post_id):
-    with UnitOfWork(db):
+    repo = PostRepository(db)
+    post = get_post_or_404(repo, post_id)
+    domain.require_visible(post, current_user)
+    return _response(repo, post, current_user, persist=False)
+
+
+def record_view(db, current_user, post_id):
+    with UnitOfWork(db) as uow:
+        uow.lock(f"post:{post_id}")
         repo = PostRepository(db)
         post = get_post_or_404(repo, post_id)
         domain.require_visible(post, current_user)
         repo.add(PostView(post_id=post.id, user_id=current_user.id))
-        return _response(repo, post, current_user)
 
 
 def update_post(db, current_user, post_id, payload):
-    with UnitOfWork(db):
+    with UnitOfWork(db) as uow:
+        uow.lock(f"post:{post_id}")
+        if "tags" in payload.model_fields_set:
+            uow.lock("tags")
         repo = PostRepository(db)
         post = get_post_or_404(repo, post_id)
+        domain.require_visible(post, current_user)
         data = payload.model_dump(exclude_unset=True)
         domain.apply_update(post, current_user, data)
         if "tags" in data:
@@ -108,9 +121,11 @@ def update_post(db, current_user, post_id, payload):
 
 
 def delete_post(db, current_user, post_id):
-    with UnitOfWork(db):
+    with UnitOfWork(db) as uow:
+        uow.lock(f"post:{post_id}")
         repo = PostRepository(db)
         post = get_post_or_404(repo, post_id)
+        domain.require_visible(post, current_user)
         domain.require_deletable(post, current_user, repo.active_comment_count(post.id))
         if domain.is_admin(current_user) and post.user_id != current_user.id:
             create_notification(
@@ -122,39 +137,48 @@ def delete_post(db, current_user, post_id):
         return MessageResponse(message="Post deleted successfully.")
 
 
-def toggle_like(db, current_user, post_id):
-    with UnitOfWork(db):
+def set_like(db, current_user, post_id, liked=True):
+    with UnitOfWork(db) as uow:
+        uow.lock(f"post:{post_id}")
         repo = PostRepository(db)
         post = get_post_or_404(repo, post_id)
+        domain.require_visible(post, current_user)
         existing = repo.like(post.id, current_user.id)
-        if existing:
+        if existing and not liked:
             repo.delete(existing)
-            return MessageResponse(message="Post unliked successfully.")
+        if existing or not liked:
+            return LikeResponse(liked=liked)
         repo.add(PostLike(post_id=post.id, user_id=current_user.id))
         if post.user_id != current_user.id:
             create_notification(
                 db, user_id=post.user_id, actor_id=current_user.id, notification_type="post_like",
                 title="Your post was liked", message=f"{current_user.username} liked your post.", post_id=post.id,
             )
-        return MessageResponse(message="Post liked successfully.")
+        return LikeResponse(liked=True)
 
 
-def toggle_bookmark(db, current_user, post_id):
-    with UnitOfWork(db):
+def set_bookmark(db, current_user, post_id, bookmarked=True):
+    with UnitOfWork(db) as uow:
+        uow.lock(f"post:{post_id}")
         repo = PostRepository(db)
-        get_post_or_404(repo, post_id)
+        post = get_post_or_404(repo, post_id)
+        domain.require_visible(post, current_user)
         existing = repo.bookmark(post_id, current_user.id)
-        if existing:
+        if existing and not bookmarked:
             repo.delete(existing)
-            return MessageResponse(message="Unbookmarked successfully.")
+        if existing or not bookmarked:
+            return BookmarkResponse(bookmarked=bookmarked)
         repo.add(Bookmark(user_id=current_user.id, post_id=post_id))
-        return MessageResponse(message="Bookmarked successfully.")
+        return BookmarkResponse(bookmarked=True)
 
 
 def share_post(db, current_user, post_id, payload=None):
-    with UnitOfWork(db):
+    with UnitOfWork(db) as uow:
+        uow.lock(f"post:{post_id}")
+        uow.lock("tags")
         repo = PostRepository(db)
         post = get_post_or_404(repo, post_id)
+        domain.require_visible(post, current_user)
         repo.add(PostShare(post_id=post.id, user_id=current_user.id))
         shared_post = domain.make_shared_post(post, current_user, payload.caption if payload else None)
         repo.add(shared_post)
@@ -171,13 +195,15 @@ def share_post(db, current_user, post_id, payload=None):
                 db, user_id=post.user_id, actor_id=current_user.id, notification_type="post_share",
                 title="Your post was shared", message=f"{current_user.username} shared your post.", post_id=post.id,
             )
-        return MessageResponse(message=f"/post/{shared_post.id}")
+        return SharePostResponse(post_id=shared_post.id, original_post_id=post.id)
 
 
 def report_post(db, current_user, post_id, payload):
-    with UnitOfWork(db):
+    with UnitOfWork(db) as uow:
+        uow.lock(f"post:{post_id}")
         repo = PostRepository(db)
         post = get_post_or_404(repo, post_id)
+        domain.require_visible(post, current_user)
         if repo.report(post_id, current_user.id):
             raise ApplicationError(status_code=409, detail="You already reported this post.")
         report = Report(

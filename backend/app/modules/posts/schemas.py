@@ -1,7 +1,5 @@
-from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field
-from app.modules.auth.schemas import UserResponse
-from app.core.schemas import PaginationMeta
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+from app.core.schemas import PaginationMeta, PublicUserSummary, UtcDateTime
 
 
 class PostBase(BaseModel):
@@ -11,20 +9,46 @@ class PostBase(BaseModel):
     tags: list[str] = Field(default_factory=list)
 
 
-class PostCreate(PostBase):
+class CreatePostRequest(PostBase):
     pass
 
 
-class PostUpdate(BaseModel):
+class UpdatePostRequest(BaseModel):
     title: str | None = Field(default=None, min_length=5, max_length=255)
     content: str | None = None
     cover_image: str | None = None
     tags: list[str] | None = None
     status: str | None = Field(default=None, pattern="^(pending|active|rejected)$")
 
+    @model_validator(mode="after")
+    def validate_patch(self):
+        if not self.model_fields_set:
+            raise ValueError("At least one field is required.")
+        for field in self.model_fields_set - {"cover_image"}:
+            if getattr(self, field) is None:
+                raise ValueError(f"{field} cannot be null.")
+        return self
+
+
+PostCreate = CreatePostRequest
+PostUpdate = UpdatePostRequest
+
 
 class SharePostRequest(BaseModel):
     caption: str | None = Field(default=None, max_length=2000)
+
+
+class SharePostResponse(BaseModel):
+    post_id: int
+    original_post_id: int
+
+
+class LikeResponse(BaseModel):
+    liked: bool
+
+
+class BookmarkResponse(BaseModel):
+    bookmarked: bool
 
 
 class PostResponse(PostBase):
@@ -36,8 +60,8 @@ class PostResponse(PostBase):
     original_post_id: int | None = None
     share_caption: str | None = None
     requested_new_tags: list[str] = Field(default_factory=list)
-    created_at: datetime
-    author: UserResponse
+    created_at: UtcDateTime
+    author: PublicUserSummary
     likes_count: int = 0
     comments_count: int = 0
     views_count: int = 0
