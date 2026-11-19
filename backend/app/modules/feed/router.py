@@ -47,18 +47,11 @@ def get_trending_suggestions(
     db: Session = Depends(get_db),
     current_user: User | None = Depends(require_active_verified_user),
 ):
-    """
-    Lấy danh sách bài viết gợi ý theo xu hướng.
+    """List active posts created within the last `hours`, ranked by engagement and age.
 
-    - **page**: Trang hiện tại (mặc định 1)
-    - **page_size**: Số bài mỗi trang (mặc định 10, tối đa 50)
-    - **hours**: Lấy bài viết trong bao nhiêu giờ qua (mặc định 24, tối đa 168)
-    - **tag**: Lọc theo tag cụ thể (nếu có)
-
-    Ví dụ:
-    - GET /api/v1/recommendations/trending → Top 10 trending posts 24h
-    - GET /api/v1/recommendations/trending?hours=7&page_size=20 → Top 20 trending posts 7 ngày
-    - GET /api/v1/recommendations/trending?tag=python → Trending posts về Python
+    The optional `tag` matches part of a tag name, case-insensitively.
+    Ranking precedes offset pagination; equal scores use descending post IDs.
+    `hours=7` selects the last seven hours.
     """
     return application.get_trending_suggestions(
         page=page,
@@ -77,15 +70,10 @@ def get_trending_tags_endpoint(
     db: Session = Depends(get_db),
     current_user: User | None = Depends(require_active_verified_user),
 ):
-    """
-    Lấy danh sách tag đang xu hướng.
+    """List tags on active posts created within the last `hours`.
 
-    - **limit**: Số tag trả về (mặc định 10, tối đa 50)
-    - **hours**: Xem xét bài viết trong bao nhiêu giờ qua (mặc định 24)
-
-    Ví dụ:
-    - GET /api/v1/tags/trending → Top 10 trending tags
-    - GET /api/v1/tags/trending?limit=20&hours=7 → Top 20 tags trong 7 ngày
+    Tags are ranked by the sum of each post's weighted likes, comments and views.
+    Equal scores use descending tag IDs. `hours=7` selects the last seven hours.
     """
     return application.get_trending_tags_endpoint(
         limit=limit,
@@ -103,22 +91,11 @@ def get_similar_posts_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_active_verified_user),
 ):
-    """
-    Lấy danh sách bài viết tương tự dựa trên nội dung (Content-Based Filtering).
+    """List active posts with content similar to an active reference post.
 
-    Thuật toán:
-    - So sánh tiêu đề, nội dung, và tags
-    - Sử dụng TF (Term Frequency) và Cosine Similarity
-    - Weighted: title(20%) + content(40%) + tags(40%)
-
-    Parameters:
-    - **post_id**: ID bài viết tham chiếu (bắt buộc)
-    - **limit**: Số bài tương tự trả về (mặc định 5, tối đa 20)
-    - **min_similarity**: Điểm tương đồng tối thiểu (mặc định 0.1, từ 0 tới 1)
-
-    Ví dụ:
-    - GET /api/v1/recommendations/posts/1/similar → 5 bài tương tự bài #1
-    - GET /api/v1/recommendations/posts/1/similar?limit=10&min_similarity=0.2 → 10 bài có tương đồng ≥ 0.2
+    Similarity compares title, content and tags. Results meeting `min_similarity`
+    are ranked by similarity, then descending post ID, and limited by `limit`.
+    A missing or non-active reference post returns an empty list with zero pages.
     """
     return application.get_similar_posts_endpoint(
         post_id=post_id,
@@ -138,29 +115,18 @@ def get_collaborative_recommendations_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_active_verified_user),
 ):
-    """
-    Lấy gợi ý bài viết dựa trên Collaborative Filtering (User-Based).
+    """List active posts ranked using users with similar interests and activity.
 
-    Thuật toán:
-    1. Tìm những user có sở thích giống bạn dựa trên:
-       - Interest tags (30%)
-       - Bài viết yêu thích (35%)
-       - Những user đang theo dõi (25%)
-       - Bài viết đã comment (10%)
+    Similar users are selected using interest tags, liked posts, follows and
+    commented posts. `min_similarity` filters this user group; `days_back` limits
+    the post creation period. Posts already liked by the current user are excluded.
+    Previously viewed posts receive a score penalty and remain eligible.
 
-    2. Lấy những bài mà những user này yêu thích
-    3. Gợi ý những bài bạn chưa thích/xem
-
-    Parameters:
-    - **page**: Trang hiện tại (mặc định 1)
-    - **page_size**: Bài mỗi trang (mặc định 10, tối đa 50)
-    - **min_similarity**: Điểm tương đồng tối thiểu (mặc định 0.2, từ 0 tới 1)
-    - **days_back**: Xem xét bài viết trong bao nhiêu ngày (mặc định 30, tối đa 365)
-
-    Ví dụ:
-    - GET /api/v1/recommendations/collaborative → Top 10 gợi ý
-    - GET /api/v1/recommendations/collaborative?page_size=20&days_back=7 → 20 bài trong 7 ngày
-    - GET /api/v1/recommendations/collaborative?min_similarity=0.3 → Chỉ những user rất tương tự
+    Candidates are posts created in that period that have at least one like,
+    including those with no likes from the similar-user group and a zero score.
+    Ranking uses total likes, the fraction of the similar-user group who liked
+    the post, and the view penalty. Equal scores use descending post IDs before
+    offset pagination. No similar users produces an empty list.
     """
     return application.get_collaborative_recommendations_endpoint(
         page=page,
@@ -181,24 +147,13 @@ def get_profile_recommendations_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_active_verified_user),
 ):
-    """
-    Lấy gợi ý bài viết dựa trên thông tin Profile của user.
+    """List active posts ranked by relevance to the current user's profile.
 
-    Phân tích dựa trên:
-    1. Interest tags (30%)
-    2. Keywords từ major, career goal, bio (40%)
-    3. Hành vi (like/comment history) (30%)
-
-    Parameters:
-    - **page**: Trang hiện tại (mặc định 1)
-    - **page_size**: Bài mỗi trang (mặc định 10, tối đa 50)
-    - **min_score**: Điểm liên quan tối thiểu (mặc định 0.1, từ 0 tới 1)
-    - **days_back**: Bài viết trong bao nhiêu ngày (mặc định 30, tối đa 365)
-
-    Ví dụ:
-    - GET /api/v1/recommendations/profile → Gợi ý mặc định
-    - GET /api/v1/recommendations/profile?page_size=20 → 20 bài
-    - GET /api/v1/recommendations/profile?min_score=0.3&days_back=7 → Chỉ bài liên quan cao trong 7 ngày
+    Relevance combines direct interest-tag matches, keywords from major, career
+    goal and bio, and tags from liked or commented posts. Posts already liked by
+    the current user are excluded. `days_back` limits the post creation period;
+    `min_score` filters the resulting relevance score. Ranking precedes offset
+    pagination, with descending post IDs for equal scores.
     """
     return application.get_profile_recommendations_endpoint(
         page=page,
@@ -215,19 +170,10 @@ def get_profile_summary_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_active_verified_user),
 ):
-    """
-    Lấy tóm tắt profile của user hiện tại.
+    """Return the current user's profile interests, education and career fields.
 
-    Trả về:
-    - Interest tags
-    - Major (chuyên ngành)
-    - Academic year (năm học)
-    - Career goal (mục tiêu sự nghiệp)
-    - Profile strength (độ đầy đủ: 0-1)
-    - Recommendations count (số bài có thể gợi ý)
-
-    Ví dụ:
-    - GET /api/v1/recommendations/profile-summary → Tóm tắt profile
+    The summary includes profile completeness and the count of active posts the
+    user has not liked. This count is not filtered by recommendation score or age.
     """
     return application.get_profile_summary_endpoint(
         db=db,
@@ -240,17 +186,9 @@ def get_profile_analysis_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_active_verified_user),
 ):
-    """
-    Phân tích chi tiết profile của user và đưa ra message gợi ý.
+    """Return the current user's profile summary and an improvement message.
 
-    Phân tích bao gồm:
-    - Độ đầy đủ thông tin profile
-    - Các lĩnh vực quan tâm
-    - Mục tiêu sự nghiệp
-    - Khuyến nghị về cải thiện profile
-
-    Ví dụ:
-    - GET /api/v1/recommendations/profile-analysis → Phân tích profile
+    The message identifies missing interest tags, major and career goal fields.
     """
     return application.get_profile_analysis_endpoint(
         db=db,
