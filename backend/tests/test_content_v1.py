@@ -163,6 +163,18 @@ def test_patch_omission_and_null(api):
     assert response.status_code == 200 and response.json()['cover_image'] is None
 
 
+def test_patch_schema_matches_omission_and_null_rules(api):
+    client, *_ = api
+    schema = client.get('/openapi.json').json()['components']['schemas']['UpdatePostRequest']
+    properties = schema['properties']
+    for field, expected_type in [('title', 'string'), ('content', 'string'), ('tags', 'array'), ('status', 'string')]:
+        assert field not in schema.get('required', [])
+        assert properties[field]['type'] == expected_type
+        assert 'anyOf' not in properties[field]
+    assert 'cover_image' not in schema.get('required', [])
+    assert {'string', 'null'} == {option['type'] for option in properties['cover_image']['anyOf']}
+
+
 def test_patch_rejects_mixed_known_and_unknown_fields_without_persisting(api):
     client, db, post, owner, _, _, selected = api
     selected[0] = owner

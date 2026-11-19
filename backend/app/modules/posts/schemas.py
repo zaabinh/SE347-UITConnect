@@ -16,11 +16,11 @@ class CreatePostRequest(PostBase):
 class UpdatePostRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    title: str | None = Field(default=None, min_length=5, max_length=255)
-    content: str | None = None
+    title: str = Field(default=None, min_length=5, max_length=255)
+    content: str = Field(default=None)
     cover_image: str | None = None
-    tags: list[str] | None = None
-    status: str | None = Field(default=None, pattern="^(pending|active|rejected)$")
+    tags: list[str] = Field(default=None)
+    status: str = Field(default=None, pattern="^(pending|active|rejected)$")
 
     @model_validator(mode="after")
     def validate_patch(self):
