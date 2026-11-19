@@ -1,3 +1,3 @@
-﻿"""Compatibility import; no legacy route aliases are registered."""
+"""Compatibility import; no legacy route aliases are registered."""
 
 from app.modules.media.router import router
