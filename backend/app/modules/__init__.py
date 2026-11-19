@@ -4,9 +4,11 @@ from app.modules.posts.models import Bookmark, Post, PostLike, PostShare, PostTa
 from app.modules.comments.models import Comment
 from app.modules.users.models import Follow, User
 from app.modules.notifications.models import Notification
+from app.db.outbox import OutboxEvent
 
 
 __all__ = [
+    "OutboxEvent",
     "User",
     "AdminAuditLog",
     "AuthSession",

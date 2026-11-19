@@ -6,13 +6,8 @@ Giảng viên: Đỗ Văn Tiến
 
 | Họ và tên | MSSV | Phân công |
 | --- | --- | --- |
-| Đoàn Hữu Gia Bình | 24520192 | Thiết kế frontend (giao diện) cho trang web; Nghiên cứu và Thiết kế Phân hệ Tương tác cốt lõi (Bài viết, Like, Share, Comment, Bookmark, Report, Follow); Triển khai hệ thống (Deployment). |
-| Nguyễn Thái Bảo | 24520173 | Nghiên cứu và Thiết kế Phân hệ Quản trị & Xác thực (Auth, Phân quyền, Profile); Phát triển Dashboard Admin và Phân tích thống kê dữ liệu; phân tích yêu cầu và viết báo cáo cho cho đồ án |
-| Võ Hoài Chiều | 24520220 | Thiết kế cơ sở dữ liệu; Nghiên cứu và Xây dựng Phân hệ Lọc & Tìm kiếm ; Phát triển thuật toán đề xuất bài viết (Trending Score, Similar Post, Collaborative Filtering, Profile Recommendation).|
 
 UITConnect là ứng dụng diễn đàn sinh viên dành cho cộng đồng UIT. Dự án gồm xác thực, bài viết, bình luận lồng nhau, report, kiểm duyệt, notification, gợi ý bài viết, hồ sơ người dùng và cấu hình deploy lên Vercel + Render.
-
-Cập nhật theo mã nguồn hiện tại: 2026-06-04.
 
 ## Công nghệ
 
@@ -85,8 +80,8 @@ Giới hạn hiện tại:
 Tạo `backend/.env` từ `backend/.env.example`.
 
 Cấu hình được đọc bằng `pydantic-settings` và kiểm tra trước khi khởi động API
-hoặc chạy setup database. Các biến `DATABASE_URL`, `FRONTEND_URL` và
-`CORS_ALLOWED_ORIGINS` là bắt buộc. Biến môi trường ghi đè giá trị trong `.env`.
+hoặc chạy setup database. Các biến `DATABASE_URL` và `CORS_ALLOWED_ORIGINS` là bắt buộc;
+`FRONTEND_URL` mặc định là `http://localhost:3000`. Biến môi trường ghi đè giá trị trong `.env`.
 `CORS_ALLOWED_ORIGINS` nhận các HTTP origin phân cách bằng dấu phẩy.
 
 Khi deploy, đặt `APP_ENV=production` (Render Blueprint đã cấu hình sẵn).
@@ -225,7 +220,11 @@ RUN_DB_SETUP_ON_START=false
 
 Chuẩn bị schema bằng `python -m scripts.setup_local_db --wait 90` và chạy các
 migration đã được review trong bước deploy riêng, trước khi khởi động worker.
-Thư mục Alembic hiện chưa có revision; `alembic upgrade head` một mình chưa tạo bảng.
+Baseline `20261119_01` đã được kiểm chứng trên SQL Server thật. Database trống dùng
+`python -m scripts.migrate upgrade`; database có schema tương đương dùng
+`python -m scripts.migrate verify` rồi `python -m scripts.migrate adopt` để stamp,
+không chạy lại CREATE TABLE. Quy trình expand–backfill–contract và workflow migration
+riêng được mô tả tại [backend/alembic/README.md](backend/alembic/README.md).
 Entrypoint không chạy setup DB, kể cả khi biến cũ `RUN_DB_SETUP_ON_START` được bật.
 Khởi động thất bại nếu không kết nối được DB. `scripts.render_start` chỉ còn là
 alias tương thích gọi cùng launcher.
@@ -286,4 +285,11 @@ Docker Compose:
 docker compose -f docker-compose.yml config
 ```
 
+
+## Backend transaction architecture
+
+Write use cases use Application Service + Repository + Unit of Work; password
+reset email is delivered through a durable outbox. Deploy migration
+`20261119_02` before the new API and run its separate worker. See
+[transaction and outbox runbook](docs/BACKEND_TRANSACTIONS.md).
 

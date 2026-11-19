@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import DateTime, ForeignKey, Integer, String, func, UnicodeText
+from sqlalchemy import DateTime, ForeignKey, Integer, Index, String, func, UnicodeText
 from sqlalchemy.dialects.mssql import UNIQUEIDENTIFIER
 from sqlalchemy.orm import Mapped, mapped_column, relationship, backref
 from app.db.base import Base
@@ -7,6 +7,7 @@ from app.db.base import Base
 
 class Comment(Base):
     __tablename__ = "comments"
+    __table_args__ = (Index("IX_comments_status", "status"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     post_id: Mapped[int] = mapped_column(ForeignKey("posts.id", ondelete="NO ACTION"), nullable=False, index=True)
@@ -18,7 +19,7 @@ class Comment(Base):
     )
     parent_id: Mapped[int | None] = mapped_column(ForeignKey("comments.id"), nullable=True)
     content: Mapped[str] = mapped_column(UnicodeText, nullable=False)
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active", server_default="active", index=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active", server_default="active")
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
 
     author = relationship("User", back_populates="comments")

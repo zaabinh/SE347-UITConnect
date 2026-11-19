@@ -1,13 +1,17 @@
 # DATABASE
 
-Tài liệu này mô tả cơ sở dữ liệu hiện tại của hệ thống **UITConnect / SE104 Forum App** theo các SQLAlchemy model trong `backend/models`.
+Tài liệu này mô tả cơ sở dữ liệu của hệ thống **UITConnect / SE104 Forum App** theo các SQLAlchemy model trong `backend/app/modules`.
+
+Schema SQL Server thực tế đã được kiểm kê và quản lý bằng baseline Alembic
+`20261119_01`. Nguồn đối chiếu là `backend/alembic/baseline_schema.json`, không phải
+file SQL ví dụ hoặc riêng các model ORM. Xem [quy trình migration và expand–contract](../backend/alembic/README.md).
 
 Hệ thống đang dùng:
 
 - Database: Microsoft SQL Server.
 - SQLAlchemy URL: `mssql+pyodbc`.
 - Driver: `ODBC Driver 18 for SQL Server`.
-- Khởi tạo ORM: `backend/database.py`.
+- Session ORM: `backend/app/db/session.py`; triển khai schema riêng bằng `python -m scripts.migrate upgrade`.
 
 > Ghi chú: tài liệu này phản ánh schema hiện tại trong source code. Một số tính năng recommendation dùng dữ liệu từ các bảng hiện có như `users.interest_tags`, `post_likes`, `comments`, `follows`, không có bảng `user_interests` riêng.
 

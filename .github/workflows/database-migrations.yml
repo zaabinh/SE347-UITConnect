@@ -1,0 +1,58 @@
+name: Database migrations
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: GitHub environment holding the target database secrets
+        type: choice
+        options: [staging, production]
+        default: staging
+        required: true
+      revision:
+        description: Reviewed Alembic upgrade target
+        type: string
+        default: head
+        required: true
+      allow_contract:
+        description: Backfill verified and all old application workers retired
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: database-migrations-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the migration image
+        run: docker build --tag uitconnect-migrations:release .
+      - name: Apply reviewed migrations before application deployment
+        env:
+          APP_ENV: ${{ inputs.environment }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+          FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
+          CORS_ALLOWED_ORIGINS: ${{ secrets.CORS_ALLOWED_ORIGINS }}
+          MIGRATION_REVISION: ${{ inputs.revision }}
+          ALLOW_CONTRACT: ${{ inputs.allow_contract }}
+        run: |
+          contract_args=()
+          if [ "$ALLOW_CONTRACT" = "true" ]; then
+            contract_args+=(--allow-contract)
+          fi
+          docker run --rm \
+            --env APP_ENV --env DATABASE_URL --env JWT_SECRET_KEY \
+            --env FRONTEND_URL --env CORS_ALLOWED_ORIGINS \
+            uitconnect-migrations:release python -m scripts.migrate \
+            upgrade "$MIGRATION_REVISION" "${contract_args[@]}"

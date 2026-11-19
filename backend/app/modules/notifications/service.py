@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from app.modules.users.models import Follow, User
+from app.modules.notifications.repository import NotificationRepository
 from app.modules.notifications.models import Notification
 
 
@@ -25,7 +25,7 @@ def create_notification(
         comment_id=comment_id,
         report_id=report_id,
     )
-    db.add(notification)
+    NotificationRepository(db).add(notification)
     return notification
 
 
@@ -40,7 +40,7 @@ def notify_admins(
     comment_id: int | None = None,
     report_id: int | None = None,
 ) -> list[Notification]:
-    admins = db.query(User).filter(User.role.ilike("admin"), User.status == "active").all()
+    admins = NotificationRepository(db).admins()
     notifications: list[Notification] = []
     for admin in admins:
         if actor_id and admin.id == actor_id:
@@ -70,7 +70,7 @@ def notify_followers(
     message: str | None = None,
     post_id: int | None = None,
 ) -> list[Notification]:
-    follows = db.query(Follow).filter(Follow.following_id == author_id).all()
+    follows = NotificationRepository(db).followers(author_id)
     notifications: list[Notification] = []
     for follow in follows:
         if follow.follower_id == author_id:

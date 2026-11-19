@@ -15,6 +15,9 @@ from app.modules.notifications import router as user_router
 from app.modules.comments.schemas import CommentCreate
 from app.modules.moderation.schemas import ReportCreate, ReportModerate
 from app.modules.notifications.service import create_notification, notify_admins, notify_followers
+from app.modules.moderation import application as admin_application
+from app.modules.comments import application as comment_application
+from app.modules.posts import application as post_application
 
 
 def utc_now_naive():
@@ -66,6 +69,10 @@ class FakeSession:
         self.deleted = []
         self.commits = 0
         self.flushes = 0
+        self.info = {}
+
+    def rollback(self):
+        pass
 
     def query(self, model, *args):
         return FakeQuery(self.rows_by_model.get(model, []))
@@ -86,6 +93,8 @@ class FakeSession:
         self.commits += 1
 
     def refresh(self, obj):
+        if isinstance(obj, Report) and obj.status is None:
+            obj.status = 'pending'
         if hasattr(obj, "created_at") and getattr(obj, "created_at", None) is None:
             obj.created_at = utc_now_naive()
 
@@ -206,7 +215,7 @@ def test_post_approval_notifies_post_author(monkeypatch):
     admin = make_user("admin-id", "admin", role="admin")
     post = make_post(user_id="author-id", status="pending")
     db = FakeSession({Post: [post]})
-    calls = collect_notifications(monkeypatch, admin_router)
+    calls = collect_notifications(monkeypatch, admin_application)
 
     response = admin_router.approve_post(post.id, current_user=admin, db=db)
 
@@ -228,7 +237,7 @@ def test_like_notifies_post_author(monkeypatch):
     actor = make_user("liker-id", "liker")
     post = make_post(user_id="author-id")
     db = FakeSession({Post: [post], PostLike: []})
-    calls = collect_notifications(monkeypatch, post_router)
+    calls = collect_notifications(monkeypatch, post_application)
 
     response = post_router.toggle_like(post.id, current_user=actor, db=db)
 
@@ -244,7 +253,7 @@ def test_comment_and_reply_create_expected_notifications(monkeypatch):
     post = make_post(user_id="author-id")
     parent_comment = make_comment(user_id="comment-author-id")
     db = FakeSession({Post: [post], Comment: [parent_comment]})
-    calls = collect_notifications(monkeypatch, comment_router)
+    calls = collect_notifications(monkeypatch, comment_application)
 
     comment_router.create_comment(
         post.id,
@@ -264,7 +273,7 @@ def test_admin_delete_post_notifies_author(monkeypatch):
     admin = make_user("admin-id", "admin", role="admin")
     post = make_post(user_id="author-id")
     db = FakeSession({Post: [post], Comment: []})
-    calls = collect_notifications(monkeypatch, post_router)
+    calls = collect_notifications(monkeypatch, post_application)
 
     response = post_router.delete_post(post.id, current_user=admin, db=db)
 
@@ -280,13 +289,13 @@ def test_post_report_notifies_admins_and_post_author(monkeypatch):
     post = make_post(user_id="author-id")
     db = FakeSession({Post: [post], Report: []})
     admin_calls = []
-    owner_calls = collect_notifications(monkeypatch, post_router)
+    owner_calls = collect_notifications(monkeypatch, post_application)
 
     def fake_notify_admins(db, **kwargs):
         admin_calls.append(kwargs)
         return []
 
-    monkeypatch.setattr(post_router, "notify_admins", fake_notify_admins)
+    monkeypatch.setattr(post_application, "notify_admins", fake_notify_admins)
 
     report = post_router.report_post(
         post.id,
@@ -314,7 +323,7 @@ def test_report_resolution_hides_post_and_notifies_author_and_reporter(monkeypat
         status="pending",
     )
     db = FakeSession({Report: [report], Post: [post]})
-    calls = collect_notifications(monkeypatch, admin_router)
+    calls = collect_notifications(monkeypatch, admin_application)
 
     response = admin_router.moderate_report(
         report.id,

@@ -1,4 +1,5 @@
--- Run this script once on existing databases to add new moderation/profile columns.
+-- Archived pre-Alembic SQL. Do not run against a versioned database.
+-- Use python -m scripts.migrate upgrade; new changes require new revisions.
 
 IF COL_LENGTH('users', 'major') IS NULL
     ALTER TABLE users ADD major NVARCHAR(120) NULL;
