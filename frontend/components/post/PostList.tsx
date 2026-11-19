@@ -252,7 +252,7 @@ export default function PostList({ searchQuery = '', initialFeedMode = 'for-you'
             : post
         )
       );
-      import('@/lib/forumApi').then(({ togglePostLike }) => togglePostLike(postId)).catch(() => {
+      import('@/lib/forumApi').then(({ togglePostLike }) => togglePostLike(postId, nextLiked)).catch(() => {
         setLikedPostIds((prev) => (nextLiked ? prev.filter((id) => id !== postId) : [...prev, postId]));
         setPosts((prev) =>
           prev.map((post) =>
@@ -275,7 +275,7 @@ export default function PostList({ searchQuery = '', initialFeedMode = 'for-you'
     (postId: number) => {
       const nextBookmarked = !bookmarkedPostIds.includes(postId);
       setBookmarkedPostIds((prev) => (nextBookmarked ? [...prev, postId] : prev.filter((id) => id !== postId)));
-      import('@/lib/forumApi').then(({ toggleBookmark }) => toggleBookmark(postId)).catch(() => {
+      import('@/lib/forumApi').then(({ toggleBookmark }) => toggleBookmark(postId, nextBookmarked)).catch(() => {
         setBookmarkedPostIds((prev) => (nextBookmarked ? prev.filter((id) => id !== postId) : [...prev, postId]));
       });
       return nextBookmarked;
@@ -489,7 +489,7 @@ export default function PostList({ searchQuery = '', initialFeedMode = 'for-you'
         </div>
       ) : searchQuery ? (
         <div className="rounded-[24px] border border-white/70 bg-white/80 px-4 py-3 text-sm text-ink-600 shadow-card">
-          {t('feedSearchResults')} <span className="font-semibold text-ink-900">"{searchQuery}"</span>
+          {t('feedSearchResults')} <span className="font-semibold text-ink-900">&quot;{searchQuery}&quot;</span>
         </div>
       ) : null}
 

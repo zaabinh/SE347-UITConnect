@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { startTransition, useEffect, useMemo, useState } from 'react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import { api } from '@/lib/axios';
+import { api, API_BASE_URL } from '@/lib/axios';
 import { useI18n } from '@/lib/i18n';
 
 export default function RegisterForm() {
@@ -16,7 +16,7 @@ export default function RegisterForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const googleLoginUrl = `${process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:8000'}/auth/google/login`;
+  const googleLoginUrl = `${API_BASE_URL}/auth/google/login`;
 
   const canSubmit = useMemo(
     () =>

@@ -1,10 +1,13 @@
 import type { NextConfig } from "next";
 
+const apiImageOrigin = process.env.NEXT_PUBLIC_API_URL?.trim();
+
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "api.dicebear.com" },
       { protocol: "https", hostname: "images.unsplash.com" },
+      ...(apiImageOrigin ? [new URL('/uploads/**', apiImageOrigin)] : []),
     ],
   },
   async headers() {

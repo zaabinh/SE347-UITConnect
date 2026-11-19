@@ -4,8 +4,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import { api, fetchCurrentUser, getStoredUser, saveStoredUser } from '@/lib/axios';
+import { api, fetchCurrentUser, getErrorDetail, getStoredUser, saveStoredUser } from '@/lib/axios';
 import { getTags } from '@/lib/forumApi';
+import { uploadImage } from '@/lib/mediaApi';
 
 const MAJORS = [
   'Computer Science',
@@ -61,6 +62,7 @@ function CompleteProfileContent() {
     customGoal: '',
   });
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
 
   const majorSelection = useMemo(() => {
@@ -115,8 +117,19 @@ function CompleteProfileContent() {
     }));
   }, []);
 
-  const onAvatarUpload = (file?: File) => {
+  const onAvatarUpload = async (file?: File) => {
     if (!file) return;
+    setUploading(true);
+    setError('');
+    try {
+      const url = await uploadImage(file);
+      setForm((prev) => ({ ...prev, avatarUrl: url }));
+    } catch (error) {
+      setError(getErrorDetail(error, 'Unable to upload avatar.'));
+      return;
+    } finally {
+      setUploading(false);
+    }
     const nextPreview = URL.createObjectURL(file);
     setAvatarPreview((prev) => {
       if (prev) URL.revokeObjectURL(prev);
@@ -148,10 +161,11 @@ function CompleteProfileContent() {
           className="space-y-6"
           onSubmit={async (event) => {
             event.preventDefault();
+            if (uploading) return;
             setLoading(true);
             setError('');
             try {
-              const response = await api.post('/auth/complete-profile', {
+              const response = await api.put('/users/me/profile-completion', {
                 username: form.username,
                 full_name: form.fullName,
                 avatar_url: form.avatarUrl || null,
@@ -185,7 +199,7 @@ function CompleteProfileContent() {
                 </div>
                 <label className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-300">
                   Upload
-                  <input type="file" accept="image/*" className="hidden" onChange={(e) => onAvatarUpload(e.target.files?.[0])} />
+                  <input type="file" accept="image/jpeg,image/png" disabled={uploading} className="hidden" onChange={(e) => onAvatarUpload(e.target.files?.[0])} />
                 </label>
               </div>
               <div className="mt-3">
@@ -342,7 +356,7 @@ function CompleteProfileContent() {
                 Skip for now
               </Button>
             ) : null}
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading || uploading}>
               {loading ? 'Saving...' : 'Complete profile'}
             </Button>
           </div>
