@@ -96,7 +96,9 @@ def validate_implementation(app):
         elif item['request'] == 'multipart:file':
             multipart = request['content']['multipart/form-data']['schema']
             definition = schema['components']['schemas'][schema_name(multipart)]
-            assert definition['properties']['file']['format'] == 'binary', label
+            file = definition['properties']['file']
+            assert file['type'] == 'string', label
+            assert file.get('format') == 'binary' or file.get('contentMediaType') == 'application/octet-stream', label
             assert 'file' in definition['required'], label
         else:
             body_schema = request['content']['application/json']['schema']
