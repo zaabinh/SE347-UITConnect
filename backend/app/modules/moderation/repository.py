@@ -22,6 +22,12 @@ class ModerationRepository(Repository):
     def report(self, report_id: int):
         return self.query(Report).filter(Report.id == report_id).first()
 
+    def latest_report_audit(self, report_id: int):
+        return self.query(AdminAuditLog).filter(
+            AdminAuditLog.action_type == "moderate_report", AdminAuditLog.target_type == "report",
+            AdminAuditLog.target_id == str(report_id),
+        ).order_by(AdminAuditLog.created_at.desc(), AdminAuditLog.id.desc()).first()
+
     def tag(self, tag_id: int):
         return self.query(Tag).filter(Tag.id == tag_id).first()
 
@@ -36,7 +42,7 @@ class ModerationRepository(Repository):
         if status_filter:
             query = query.filter(func.lower(User.status) == status_filter.lower())
         column = {"created_at": User.created_at, "username": User.username, "email": User.email}[sort_by]
-        query = query.order_by(column.asc() if sort_order == "asc" else column.desc())
+        query = query.order_by(column.asc() if sort_order == "asc" else column.desc(), User.id.asc())
         return self._page(query, page, page_size)
 
     def list_reports(self, page, page_size, status_filter, reason):

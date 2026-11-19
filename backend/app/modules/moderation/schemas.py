@@ -1,16 +1,14 @@
-from datetime import datetime
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
+from app.core.schemas import UtcDateTime
 
 
-class ReportCreate(BaseModel):
-    post_id: int | None = None
-    comment_id: int | None = None
+class CreateReportRequest(BaseModel):
     reason: Literal["spam", "harassment", "hate_speech", "violence", "misinformation", "other"]
     details: str | None = Field(default=None, max_length=2000)
 
 
-class ReportModerate(BaseModel):
+class ModerateReportRequest(BaseModel):
     status: str = Field(..., pattern="^(pending|reviewed|dismissed|resolved)$")
     action: Literal[
         "none",
@@ -21,6 +19,18 @@ class ReportModerate(BaseModel):
         "hide_comment_and_ban_author",
     ] = "none"
     notes: str | None = Field(default=None, max_length=1000)
+
+
+class ModeratePostRequest(BaseModel):
+    status: Literal["active", "rejected"]
+
+
+class BanUserRequest(BaseModel):
+    reason: str | None = Field(default=None, max_length=1000)
+
+
+ReportCreate = CreateReportRequest
+ReportModerate = ModerateReportRequest
 
 
 class ReportResponse(BaseModel):
@@ -34,5 +44,5 @@ class ReportResponse(BaseModel):
     details: str | None
     status: str
     reviewed_by: str | None
-    reviewed_at: datetime | None
-    created_at: datetime
+    reviewed_at: UtcDateTime | None
+    created_at: UtcDateTime

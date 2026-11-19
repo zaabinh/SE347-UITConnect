@@ -195,17 +195,17 @@ def test_invalid_report_actions_leave_no_writes(db, moderation_data, status, act
 
 @pytest.mark.parametrize("method,path,body", [
     ("GET", "/admin/users", None),
-    ("POST", "/admin/users/any/ban", None),
-    ("POST", "/admin/users/any/unban", None),
+    ("PUT", "/admin/users/any/ban", {"reason": None}),
+    ("DELETE", "/admin/users/any/ban", None),
     ("GET", "/admin/reports", None),
-    ("POST", "/admin/reports/1/moderate", {"status": "dismissed"}),
+    ("PUT", "/admin/reports/1/moderation", {"status": "dismissed"}),
     ("GET", "/admin/posts/pending", None),
-    ("POST", "/admin/posts/1/approve", None),
-    ("POST", "/admin/posts/1/reject", None),
+    ("PUT", "/admin/posts/1/moderation", {"status": "active"}),
+    ("PUT", "/admin/posts/1/moderation", {"status": "rejected"}),
     ("GET", "/admin/analytics/overview", None),
     ("GET", "/admin/tags", None),
     ("POST", "/admin/tags", {"name": "tag"}),
-    ("PUT", "/admin/tags/1", {"name": "tag"}),
+    ("PATCH", "/admin/tags/1", {"name": "tag"}),
     ("DELETE", "/admin/tags/1", None),
 ])
 def test_admin_endpoints_reject_non_admin(db, method, path, body):
