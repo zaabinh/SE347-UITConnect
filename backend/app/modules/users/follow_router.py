@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -11,7 +12,7 @@ from app.modules.users.schemas import FollowResponse
 router = APIRouter(tags=["Follows"])
 
 
-@router.post("/follow/{user_id}", response_model=FollowResponse, status_code=status.HTTP_201_CREATED)
+@router.put("/users/{user_id}/followers/me", response_model=FollowResponse, operation_id="users_follow")
 def follow_user(
     user_id: str,
     current_user: User = Depends(require_active_verified_user),
@@ -20,10 +21,11 @@ def follow_user(
     return application.follow_user(db, current_user, user_id)
 
 
-@router.delete("/follow/{user_id}", response_model=FollowResponse)
+@router.delete("/users/{user_id}/followers/me", status_code=204, response_class=Response, operation_id="users_unfollow")
 def unfollow_user(
     user_id: str,
     current_user: User = Depends(require_active_verified_user),
     db: Session = Depends(get_db),
 ):
-    return application.unfollow_user(db, current_user, user_id)
+    application.unfollow_user(db, current_user, user_id)
+    return Response(status_code=204)

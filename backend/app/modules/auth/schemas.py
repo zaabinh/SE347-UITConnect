@@ -1,36 +1,45 @@
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
-class RegisterRequest(BaseModel):
+class AuthRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    @field_validator("username", "full_name", mode="before", check_fields=False)
+    @classmethod
+    def strip_profile_names(cls, value):
+        return value.strip() if isinstance(value, str) else value
+
+
+class RegisterRequest(AuthRequest):
     username: str = Field(..., min_length=3, max_length=50)
-    email: EmailStr
+    email: EmailStr = Field(max_length=255)
     password: str = Field(..., min_length=6, max_length=128)
     full_name: str = Field(..., min_length=2, max_length=255)
 
 
-class LoginRequest(BaseModel):
+class LoginRequest(AuthRequest):
     identifier: str
     password: str = Field(..., min_length=6, max_length=128)
 
 
-class RefreshTokenRequest(BaseModel):
+class RefreshTokenRequest(AuthRequest):
     refresh_token: str = Field(..., min_length=10)
 
 
-class LogoutRequest(BaseModel):
+class LogoutRequest(AuthRequest):
     refresh_token: str = Field(..., min_length=10)
 
 
-class ForgotPasswordRequest(BaseModel):
-    email: EmailStr
+class ForgotPasswordRequest(AuthRequest):
+    email: EmailStr = Field(max_length=255)
 
 
-class ResetPasswordRequest(BaseModel):
+class ResetPasswordRequest(AuthRequest):
     token: str = Field(..., min_length=12)
     password: str = Field(..., min_length=6, max_length=128)
 
 
-class CompleteProfileRequest(BaseModel):
+class CompleteProfileRequest(AuthRequest):
     username: str = Field(..., min_length=3, max_length=50)
     full_name: str = Field(..., min_length=2, max_length=255)
     avatar_url: str | None = None
@@ -41,12 +50,12 @@ class CompleteProfileRequest(BaseModel):
     interest_tags: list[str] = Field(default_factory=list, max_length=20)
 
 
-class VerifyEmailRequest(BaseModel):
+class VerifyEmailRequest(AuthRequest):
     token: str = Field(..., min_length=12)
 
 
-class ResendVerificationRequest(BaseModel):
-    email: EmailStr
+class ResendVerificationRequest(AuthRequest):
+    email: EmailStr = Field(max_length=255)
 
 
 class TokenResponse(BaseModel):
@@ -98,5 +107,9 @@ class UserResponse(BaseModel):
         return []
 
 
-class CurrentUserResponse(UserResponse):
+class CurrentUserIdentityResponse(UserResponse):
     profile_completed: bool
+
+
+# Internal compatibility for callers predating the versioned API.
+CurrentUserResponse = CurrentUserIdentityResponse
