@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: se104-forum-backend
+    name: uitconnect-backend
     runtime: docker
     plan: free
     dockerfilePath: backend/Dockerfile

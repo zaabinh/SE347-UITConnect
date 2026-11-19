@@ -1,6 +1,6 @@
 # DATABASE
 
-Tài liệu này mô tả cơ sở dữ liệu của hệ thống **UITConnect / SE104 Forum App** theo các SQLAlchemy model trong `backend/app/modules`.
+Tài liệu này mô tả cơ sở dữ liệu của hệ thống **UITConnect** theo các SQLAlchemy model trong `backend/app/modules`.
 
 Schema SQL Server thực tế đã được kiểm kê và quản lý bằng baseline Alembic
 `20261119_01`. Nguồn đối chiếu là `backend/alembic/baseline_schema.json`, không phải

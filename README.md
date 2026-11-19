@@ -1,6 +1,4 @@
-# Đồ án SE104 - UITConnect
-
-Giảng viên: Đỗ Văn Tiến
+# Đồ án SE347 - UITConnect
 
 ## Sinh Viên Thực Hiện
 
