@@ -42,6 +42,21 @@ def test_discovery_operation_ids_and_no_legacy_aliases():
             assert client.get(legacy).status_code == 404
 
 
+def test_upload_openapi_requires_a_binary_multipart_file():
+    schema = create_discovery_app().openapi()
+    request = schema['paths']['/api/v1/media/images']['post']['requestBody']
+    assert request['required'] is True
+    assert set(request['content']) == {'multipart/form-data'}
+    reference = request['content']['multipart/form-data']['schema']['$ref']
+    body = schema['components']['schemas'][reference.rsplit('/', 1)[-1]]
+    assert body['required'] == ['file']
+    assert set(body['properties']) == {'file'}
+    field = body['properties']['file']
+    assert field['type'] == 'string'
+    assert (field.get('format') == 'binary'
+            or field.get('contentMediaType') == 'application/octet-stream')
+
+
 @pytest.mark.parametrize('path', [
     '/feed', '/recommendations/trending', '/recommendations/collaborative',
     '/recommendations/profile', '/recommendations/posts/1/similar',
