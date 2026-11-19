@@ -260,13 +260,15 @@ python -m scripts.setup_local_db --wait 90
 **Solution**: Check allowed origins in main.py CORS configuration
 
 ### Issue: Database migrations
-**Solution**: Tables are created automatically via SQLAlchemy. To reset:
-```python
-# In Python shell
-from app.database import Base, engine
-Base.metadata.drop_all(bind=engine)  # Drop all tables
-Base.metadata.create_all(bind=engine)  # Create fresh tables
+**Solution**: Run versioned migrations separately from application startup:
+```powershell
+python -m scripts.migrate status
+python -m scripts.migrate upgrade
 ```
+
+Existing unversioned databases must pass `python -m scripts.migrate verify` before
+`python -m scripts.migrate adopt`. Never replay the baseline on existing tables.
+See [the migration runbook](../backend/alembic/README.md) for expand/contract releases.
 
 ## Environment Variables
 

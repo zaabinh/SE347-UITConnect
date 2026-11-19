@@ -4,12 +4,12 @@ from app.db.session import get_db
 from app.modules.auth.dependencies import require_active_verified_user
 from app.modules.users.models import User
 from app.modules.posts.schemas import PostListResponse
-from app.modules.feed.schemas import TrendingPostListResponse, TrendingPostResponse, TrendingTagListResponse, SimilarPostListResponse, SimilarPostResponse, CollaborativePostListResponse, CollaborativePostResponse, ProfileBasedPostListResponse, ProfileBasedPostResponse, UserProfileSummary, ProfileAnalysisResponse
-from app.modules.posts.service import build_post_query, paginate_latest_posts_fast, paginate_trending_posts_fast, paginate_query, serialize_post
-from app.modules.feed.trending_service import get_trending_posts, get_trending_tags, get_similar_posts
-from app.modules.feed.collaborative_filtering_service import get_collaborative_recommendations
-from app.modules.feed.profile_analysis_service import get_profile_based_recommendations, get_user_profile_summary
-from datetime import datetime
+from app.modules.feed.schemas import (
+    TrendingPostListResponse, TrendingTagListResponse, SimilarPostListResponse,
+    CollaborativePostListResponse, ProfileBasedPostListResponse,
+    UserProfileSummary, ProfileAnalysisResponse,
+)
+from app.modules.feed import application
 
 
 router = APIRouter(prefix='/posts', tags=['Posts'])
@@ -26,31 +26,17 @@ def get_posts_feed(
     db: Session = Depends(get_db),
     current_user: User | None = Depends(require_active_verified_user),
 ):
-    current_user_id = current_user.id if current_user else None
+    return application.get_posts_feed(
+        page=page,
+        page_size=page_size,
+        search=search,
+        tag=tag,
+        mode=mode,
+        sort=sort,
+        db=db,
+        current_user=current_user,
+    )
 
-    use_trending_fast_path = mode == "trending" or sort == "trending"
-    use_fast_path = sort == "latest" and mode != "trending"
-    if use_trending_fast_path:
-        rows, pagination = paginate_trending_posts_fast(db, current_user_id, search, tag, page, page_size)
-    elif use_fast_path:
-        rows, pagination = paginate_latest_posts_fast(db, current_user_id, search, tag, mode, page, page_size)
-    else:
-        query = build_post_query(current_user_id, search, tag, mode, sort)
-        rows, pagination = paginate_query(db, query, page, page_size)
-
-    if use_fast_path or use_trending_fast_path:
-        items = [serialize_post(row[0], row[1], current_user_id) for row in rows]
-    else:
-        items = [serialize_post(row[0], row, current_user_id) for row in rows]
-    return {
-        "items": items,
-        "meta": {
-            "page": pagination.page,
-            "page_size": pagination.page_size,
-            "total": pagination.total,
-            "total_pages": pagination.total_pages,
-        },
-    }
 
 @router.get("/trending/suggestions", response_model=TrendingPostListResponse)
 def get_trending_suggestions(
@@ -74,54 +60,15 @@ def get_trending_suggestions(
     - GET /posts/trending/suggestions?hours=7&page_size=20 → Top 20 trending posts 7 ngày
     - GET /posts/trending/suggestions?tag=python → Trending posts về Python
     """
-    current_user_id = current_user.id if current_user else None
-
-    posts_with_scores, pagination = get_trending_posts(
-        db=db,
-        current_user_id=current_user_id,
+    return application.get_trending_suggestions(
         page=page,
         page_size=page_size,
         hours=hours,
-        tag_filter=tag,
-        user_personalize=True
+        tag=tag,
+        db=db,
+        current_user=current_user,
     )
 
-    items = []
-    for idx, post_data in enumerate(posts_with_scores, start=1):
-        post = post_data["post"]
-
-        # Tạo stats object
-        stats = type("Stats", (), {
-            "likes_count": post_data["likes"],
-            "comments_count": post_data["comments"],
-            "views_count": post_data["views"],
-            "shares_count": post_data["shares"],
-            "trending_score": int(post_data["score"]),
-            "is_liked": post_data["is_liked"],
-            "is_bookmarked": post_data["is_bookmarked"]
-        })()
-
-        # Serialize post
-        post_response = serialize_post(post, stats, current_user_id)
-
-        # Tạo trending response
-        trending_response = TrendingPostResponse(
-            post=post_response,
-            trend_rank=(page - 1) * page_size + idx,
-            hot_score=post_data["score"],
-            trending_reason=post_data["reason"]
-        )
-        items.append(trending_response)
-
-    return {
-        "items": items,
-        "meta": {
-            "page": pagination.page,
-            "page_size": pagination.page_size,
-            "total": pagination.total,
-            "total_pages": pagination.total_pages,
-        },
-    }
 
 @router.get("/trending/tags", response_model=TrendingTagListResponse)
 def get_trending_tags_endpoint(
@@ -140,14 +87,13 @@ def get_trending_tags_endpoint(
     - GET /posts/trending/tags → Top 10 trending tags
     - GET /posts/trending/tags?limit=20&hours=7 → Top 20 tags trong 7 ngày
     """
-    _ = current_user  # Đảm bảo user đã xác thực
+    return application.get_trending_tags_endpoint(
+        limit=limit,
+        hours=hours,
+        db=db,
+        current_user=current_user,
+    )
 
-    trending_tags = get_trending_tags(db, limit=limit, hours=hours)
-
-    return {
-        "items": trending_tags,
-        "updated_at": datetime.utcnow().isoformat()
-    }
 
 @router.get("/{post_id}/similar", response_model=SimilarPostListResponse)
 def get_similar_posts_endpoint(
@@ -174,35 +120,14 @@ def get_similar_posts_endpoint(
     - GET /posts/1/similar → 5 bài tương tự bài #1
     - GET /posts/1/similar?limit=10&min_similarity=0.2 → 10 bài có tương đồng ≥ 0.2
     """
-    similar_posts_data = get_similar_posts(
-        db=db,
+    return application.get_similar_posts_endpoint(
         post_id=post_id,
-        current_user_id=current_user.id,
         limit=limit,
-        min_similarity=min_similarity
+        min_similarity=min_similarity,
+        db=db,
+        current_user=current_user,
     )
 
-    items = []
-    for item in similar_posts_data:
-        post = item["post"]
-        post_response = serialize_post(post, item["stats"], current_user.id)
-
-        similar_response = SimilarPostResponse(
-            post=post_response,
-            similarity_score=round(item["similarity"], 3),
-            similarity_reason=item["reason"]
-        )
-        items.append(similar_response)
-
-    return {
-        "items": items,
-        "meta": {
-            "page": 1,
-            "page_size": len(items),
-            "total": len(items),
-            "total_pages": 1,
-        },
-    }
 
 @router.get("/recommendations/collaborative", response_model=CollaborativePostListResponse)
 def get_collaborative_recommendations_endpoint(
@@ -237,37 +162,15 @@ def get_collaborative_recommendations_endpoint(
     - GET /posts/recommendations/collaborative?page_size=20&days_back=7 → 20 bài trong 7 ngày
     - GET /posts/recommendations/collaborative?min_similarity=0.3 → Chỉ những user rất tương tự
     """
-    collab_posts, pagination = get_collaborative_recommendations(
-        db=db,
-        user_id=current_user.id,
+    return application.get_collaborative_recommendations_endpoint(
         page=page,
         page_size=page_size,
         min_similarity=min_similarity,
-        days_back=days_back
+        days_back=days_back,
+        db=db,
+        current_user=current_user,
     )
 
-    items = []
-    for item in collab_posts:
-        post = item["post"]
-        post_response = serialize_post(post, item["stats"], current_user.id)
-
-        collab_response = CollaborativePostResponse(
-            post=post_response,
-            cf_score=round(item["cf_score"], 3),
-            cf_reason=item["reason"],
-            similar_user_count=0  # TODO: Thêm vào service
-        )
-        items.append(collab_response)
-
-    return {
-        "items": items,
-        "meta": {
-            "page": pagination.page,
-            "page_size": pagination.page_size,
-            "total": pagination.total,
-            "total_pages": pagination.total_pages,
-        },
-    }
 
 @router.get("/recommendations/profile", response_model=ProfileBasedPostListResponse)
 def get_profile_recommendations_endpoint(
@@ -297,36 +200,15 @@ def get_profile_recommendations_endpoint(
     - GET /posts/recommendations/profile?page_size=20 → 20 bài
     - GET /posts/recommendations/profile?min_score=0.3&days_back=7 → Chỉ bài liên quan cao trong 7 ngày
     """
-    profile_posts, pagination = get_profile_based_recommendations(
-        db=db,
-        user_id=current_user.id,
+    return application.get_profile_recommendations_endpoint(
         page=page,
         page_size=page_size,
         min_score=min_score,
-        days_back=days_back
+        days_back=days_back,
+        db=db,
+        current_user=current_user,
     )
 
-    items = []
-    for item in profile_posts:
-        post = item["post"]
-        post_response = serialize_post(post, item["stats"], current_user.id)
-
-        profile_response = ProfileBasedPostResponse(
-            post=post_response,
-            profile_score=round(item["profile_score"], 3),
-            recommendation_reason=item["reason"]
-        )
-        items.append(profile_response)
-
-    return {
-        "items": items,
-        "meta": {
-            "page": pagination.page,
-            "page_size": pagination.page_size,
-            "total": pagination.total,
-            "total_pages": pagination.total_pages,
-        },
-    }
 
 @router.get("/profile/summary", response_model=UserProfileSummary)
 def get_profile_summary_endpoint(
@@ -347,20 +229,11 @@ def get_profile_summary_endpoint(
     Ví dụ:
     - GET /posts/profile/summary → Tóm tắt profile
     """
-    profile_summary = get_user_profile_summary(db, current_user.id)
+    return application.get_profile_summary_endpoint(
+        db=db,
+        current_user=current_user,
+    )
 
-    if not profile_summary:
-        profile_summary = {
-            "interest_tags": [],
-            "major": "",
-            "academic_year": "",
-            "career_goal": "",
-            "profile_strength": 0.0,
-            "recommendations_count": 0,
-            "profile_completeness": {}
-        }
-
-    return profile_summary
 
 @router.get("/profile/analysis", response_model=ProfileAnalysisResponse)
 def get_profile_analysis_endpoint(
@@ -379,37 +252,7 @@ def get_profile_analysis_endpoint(
     Ví dụ:
     - GET /posts/profile/analysis → Phân tích profile
     """
-    profile_summary = get_user_profile_summary(db, current_user.id)
-
-    if not profile_summary:
-        profile_summary = {
-            "interest_tags": [],
-            "major": "",
-            "academic_year": "",
-            "career_goal": "",
-            "profile_strength": 0.0,
-            "recommendations_count": 0,
-            "profile_completeness": {}
-        }
-
-    # Tạo message khuyến nghị
-    completeness = profile_summary.get("profile_completeness", {})
-    missing_fields = []
-
-    if not completeness.get("has_interest_tags"):
-        missing_fields.append("sở thích")
-    if not completeness.get("has_major"):
-        missing_fields.append("chuyên ngành")
-    if not completeness.get("has_career_goal"):
-        missing_fields.append("mục tiêu sự nghiệp")
-
-    if missing_fields:
-        recommendation_message = f"Hoàn thành profile bằng cách cập nhật: {', '.join(missing_fields)} để nhận được gợi ý chính xác hơn."
-    else:
-        recommendation_message = "Profile của bạn đầy đủ! Chúng tôi sẽ gợi ý những bài viết phù hợp nhất."
-
-    return ProfileAnalysisResponse(
-        user_id=current_user.id,
-        profile_summary=UserProfileSummary(**profile_summary),
-        recommendation_message=recommendation_message
+    return application.get_profile_analysis_endpoint(
+        db=db,
+        current_user=current_user,
     )

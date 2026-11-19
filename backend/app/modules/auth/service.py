@@ -3,7 +3,9 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from app.modules.auth.models import EmailVerificationToken, PasswordResetToken
 from app.modules.users.models import User
-from app.modules.auth.email_service import build_password_reset_link, build_verification_link, send_email_message
+from app.modules.auth.email_service import build_password_reset_link, build_verification_link
+from app.modules.auth.repository import AuthRepository
+from app.db.outbox import enqueue_email
 from app.core.security import hash_password
 
 
@@ -12,20 +14,22 @@ def is_profile_completed(user: User) -> bool:
 
 
 def create_email_verification_token(db: Session, user: User) -> EmailVerificationToken:
-    db.query(EmailVerificationToken).filter(EmailVerificationToken.user_id == user.id).delete()
+    repository = AuthRepository(db)
+    repository.delete_verification_tokens(user.id)
     token = EmailVerificationToken(
         user_id=user.id,
         token=secrets.token_urlsafe(32),
         expires_at=datetime.utcnow() + timedelta(hours=24),
     )
-    db.add(token)
-    db.flush()
+    repository.add(token)
+    repository.flush()
     return token
 
 
-def send_verification_email(user: User, token: str) -> None:
+def send_verification_email(db: Session, user: User, token: str) -> None:
     link = build_verification_link(token)
-    send_email_message(
+    enqueue_email(
+        db,
         user.email,
         "Verify your Forum account",
         f"Hello {user.full_name},\n\nVerify your email here: {link}\n\nThis link expires in 24 hours.",
@@ -33,20 +37,22 @@ def send_verification_email(user: User, token: str) -> None:
 
 
 def create_password_reset_token(db: Session, user: User) -> PasswordResetToken:
-    db.query(PasswordResetToken).filter(PasswordResetToken.user_id == user.id, PasswordResetToken.used_at.is_(None)).delete()
+    repository = AuthRepository(db)
+    repository.delete_unused_reset_tokens(user.id)
     token = PasswordResetToken(
         user_id=user.id,
         token=secrets.token_urlsafe(32),
         expires_at=datetime.utcnow() + timedelta(minutes=30),
     )
-    db.add(token)
-    db.flush()
+    repository.add(token)
+    repository.flush()
     return token
 
 
-def send_password_reset_email(user: User, token: str) -> None:
+def send_password_reset_email(db: Session, user: User, token: str) -> None:
     link = build_password_reset_link(token)
-    send_email_message(
+    enqueue_email(
+        db,
         user.email,
         "Reset your Forum password",
         f"Hello {user.full_name},\n\nReset your password here: {link}\n\nThis link expires in 30 minutes.",

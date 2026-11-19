@@ -28,11 +28,16 @@ def test_environment_overrides_dotenv(config_env, monkeypatch, tmp_path):
     assert config.cors_allowed_origins == ["http://localhost:3000", "https://ui.example.com"]
 
 
-@pytest.mark.parametrize("name", ["DATABASE_URL", "FRONTEND_URL", "CORS_ALLOWED_ORIGINS"])
+@pytest.mark.parametrize("name", ["DATABASE_URL", "CORS_ALLOWED_ORIGINS"])
 def test_required_configuration(config_env, monkeypatch, name):
     monkeypatch.delenv(name)
     with pytest.raises(ValidationError):
         Settings(_env_file=None)
+
+
+def test_frontend_url_has_local_default(config_env, monkeypatch):
+    monkeypatch.delenv('FRONTEND_URL')
+    assert str(Settings(_env_file=None).frontend_url).rstrip('/') == 'http://localhost:3000'
 
 
 @pytest.mark.parametrize(("name", "value"), [

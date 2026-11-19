@@ -40,7 +40,7 @@ def test_public_routes_are_preserved():
 
 def test_all_models_share_one_registry():
     configure_mappers()
-    assert len(Base.metadata.tables) == 16
+    assert len(Base.metadata.tables) == 17
     for table in Base.metadata.tables.values():
         for foreign_key in table.foreign_keys:
             assert foreign_key.column.table.metadata is Base.metadata

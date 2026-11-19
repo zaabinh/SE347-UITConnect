@@ -31,7 +31,7 @@ class Settings(BaseSettings):
 
     app_env: Literal["development", "test", "staging", "production"] = "development"
     database_url: str = Field(min_length=1, repr=False)
-    frontend_url: HttpUrl
+    frontend_url: HttpUrl = "http://localhost:3000"
     cors_allowed_origins: Annotated[list[str], NoDecode] = Field(min_length=1)
     jwt_secret_key: SecretStr = SecretStr(DEFAULT_JWT_SECRET)
     jwt_algorithm: Literal["HS256", "HS384", "HS512"] = "HS256"

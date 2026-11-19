@@ -3,6 +3,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.modules.users.models import User
+from app.modules.auth.repository import AuthRepository
 from app.modules.auth.service import is_profile_completed
 from app.core.security import decode_token
 
@@ -29,7 +30,7 @@ def get_current_user(
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload.")
 
-    user = db.query(User).filter(User.id == str(user_id)).first()
+    user = AuthRepository(db).find_user(str(user_id))
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found.")
     if user.status.lower() == "deleted":

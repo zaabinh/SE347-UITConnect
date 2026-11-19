@@ -1,23 +1,21 @@
-from app.core.config import settings
-from datetime import datetime
-from urllib.parse import urlencode
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import RedirectResponse
-from sqlalchemy import or_
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
+
 from app.db.session import get_db
+from app.modules.auth.application import AuthApplicationService
 from app.modules.auth.dependencies import get_current_user
-from app.modules.auth.models import AuthSession, PasswordResetToken
+from app.modules.auth.schemas import (
+    CompleteProfileRequest, CurrentUserResponse, ForgotPasswordRequest, LoginRequest,
+    LogoutRequest, MessageResponse, RefreshTokenRequest, RegisterRequest,
+    ResendVerificationRequest, ResetPasswordRequest, TokenResponse, UserResponse,
+    VerificationResponse, VerifyEmailRequest,
+)
+from app.modules.auth.service import is_profile_completed
 from app.modules.users.models import User
-from app.modules.auth.schemas import CompleteProfileRequest, CurrentUserResponse, ForgotPasswordRequest, LoginRequest, LogoutRequest, MessageResponse, RefreshTokenRequest, RegisterRequest, ResendVerificationRequest, ResetPasswordRequest, TokenResponse, UserResponse, VerificationResponse, VerifyEmailRequest
-from app.modules.auth.service import create_google_user, create_password_reset_token, is_profile_completed, send_password_reset_email
-from app.modules.auth.google_oauth_service import build_google_auth_url, exchange_google_code, fetch_google_userinfo
-from app.core.security import hash_password, verify_password, create_access_token, create_refresh_token, decode_token
 
 
 router = APIRouter(tags=["Authentication"])
-FRONTEND_URL = str(settings.frontend_url).rstrip("/")
 
 
 def parse_interest_tags(raw_tags: str | None) -> list[str]:
@@ -28,236 +26,77 @@ def parse_interest_tags(raw_tags: str | None) -> list[str]:
 
 def build_current_user_response(user: User) -> CurrentUserResponse:
     return CurrentUserResponse(
-        id=user.id,
-        username=user.username,
-        email=user.email,
-        full_name=user.full_name,
-        avatar_url=user.avatar_url,
-        bio=user.bio,
-        major=user.major,
-        academic_year=user.academic_year,
-        career_goal=user.career_goal,
-        interest_tags=parse_interest_tags(user.interest_tags),
-        role=user.role,
-        status=user.status,
-        provider=user.provider,
-        is_verified=user.is_verified,
+        id=user.id, username=user.username, email=user.email, full_name=user.full_name,
+        avatar_url=user.avatar_url, bio=user.bio, major=user.major,
+        academic_year=user.academic_year, career_goal=user.career_goal,
+        interest_tags=parse_interest_tags(user.interest_tags), role=user.role,
+        status=user.status, provider=user.provider, is_verified=user.is_verified,
         profile_completed=is_profile_completed(user),
     )
 
 
+def request_metadata(request: Request):
+    return {
+        "ip_address": request.client.host if request.client else None,
+        "user_agent": request.headers.get("user-agent"),
+    }
+
+
 def create_session_tokens(user: User, request: Request, db: Session) -> TokenResponse:
-    access_token = create_access_token(user.id, user.email, user.role)
-    refresh_token, refresh_expires_at = create_refresh_token(user.id)
-    db.add(
-        AuthSession(
-            user_id=user.id,
-            refresh_token=refresh_token,
-            ip_address=request.client.host if request.client else None,
-            user_agent=request.headers.get("user-agent"),
-            expires_at=refresh_expires_at.replace(tzinfo=None),
-        )
-    )
-    db.commit()
-    return TokenResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
-        expires_in=settings.access_token_expire_minutes * 60,
-    )
+    return AuthApplicationService(db).create_session_tokens(user, **request_metadata(request))
 
 
 @router.post("/register", response_model=VerificationResponse, status_code=status.HTTP_201_CREATED)
 def register(payload: RegisterRequest, db: Session = Depends(get_db)):
-    normalized_email = payload.email.lower().strip()
-    normalized_username = payload.username.strip().lower()
-
-    existing_user = (
-        db.query(User)
-        .filter(or_(User.email == normalized_email, User.username == normalized_username))
-        .first()
-    )
-    if existing_user:
-        if existing_user.email == normalized_email:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already exists.")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already exists.")
-
-    user = User(
-        username=normalized_username,
-        email=normalized_email,
-        password_hash=hash_password(payload.password),
-        full_name=payload.full_name.strip(),
-        role="Student",
-        status="active",
-        provider="local",
-        is_verified=True,
-    )
-    db.add(user)
-    try:
-        db.flush()
-        db.commit()
-    except IntegrityError as exc:
-        db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Registration conflicts with an existing user.") from exc
-    except SQLAlchemyError as exc:
-        db.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error during registration.") from exc
-
+    AuthApplicationService(db).register(payload)
     return VerificationResponse(message="Registration successful. You can now log in.")
 
 
 @router.post("/login", response_model=TokenResponse)
 def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)):
-    identifier = payload.identifier.lower().strip()
-    user = db.query(User).filter(or_(User.email == identifier, User.username == identifier)).first()
-    if not user or user.status.lower() == "deleted":
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
-    if user.status.lower() == "banned":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is banned")
-    if not verify_password(payload.password, user.password_hash):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password.")
-
-    return create_session_tokens(user, request, db)
+    return AuthApplicationService(db).login(payload, **request_metadata(request))
 
 
 @router.get("/google/login")
 def google_login():
-    return RedirectResponse(build_google_auth_url())
+    return RedirectResponse(AuthApplicationService.google_login())
 
 
 @router.get("/google/callback")
 def google_callback(code: str, request: Request, db: Session = Depends(get_db)):
-    google_tokens = exchange_google_code(code)
-    google_user = fetch_google_userinfo(google_tokens["access_token"])
-    email = google_user.get("email", "").lower().strip()
-    if not email:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Google account did not provide an email.")
-
-    user = db.query(User).filter(User.email == email).first()
-    created = False
-    if not user:
-        user = create_google_user(
-            email=email,
-            full_name=(google_user.get("name") or email.split("@", 1)[0]).strip(),
-            avatar_url=google_user.get("picture"),
-        )
-        db.add(user)
-        db.flush()
-        created = True
-
-    if user.status.lower() == "deleted":
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
-    if user.status.lower() == "banned":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is banned")
-
-    token_response = create_session_tokens(user, request, db)
-    next_path = "/feed"
-    if not is_profile_completed(user):
-        next_path = "/complete-profile"
-
-    query = urlencode(
-        {
-            "access_token": token_response.access_token,
-            "refresh_token": token_response.refresh_token,
-            "next": next_path,
-            "email": user.email,
-            "verified": str(user.is_verified).lower(),
-            "profile_completed": str(is_profile_completed(user)).lower(),
-        }
-    )
-    return RedirectResponse(f"{FRONTEND_URL}/auth/callback?{query}")
+    return RedirectResponse(AuthApplicationService(db).google_callback(code, **request_metadata(request)))
 
 
 @router.post("/refresh", response_model=TokenResponse)
 def refresh_token(payload: RefreshTokenRequest, db: Session = Depends(get_db)):
-    session = db.query(AuthSession).filter(AuthSession.refresh_token == payload.refresh_token).first()
-    if not session:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token not found.")
-    if session.expires_at < datetime.utcnow():
-        db.delete(session)
-        db.commit()
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token expired.")
-
-    try:
-        token_payload = decode_token(payload.refresh_token)
-    except ValueError as exc:
-        db.delete(session)
-        db.commit()
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
-
-    if token_payload.get("type") != "refresh" or str(session.user_id) != str(token_payload.get("sub")):
-        db.delete(session)
-        db.commit()
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token is invalid.")
-
-    user = db.query(User).filter(User.id == session.user_id).first()
-    if not user or user.status.lower() == "deleted":
-        db.delete(session)
-        db.commit()
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found.")
-    if user.status.lower() == "banned":
-        db.delete(session)
-        db.commit()
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is banned")
-
-    access_token = create_access_token(user.id, user.email, user.role)
-    return TokenResponse(
-        access_token=access_token,
-        refresh_token=payload.refresh_token,
-        expires_in=settings.access_token_expire_minutes * 60,
-    )
+    return AuthApplicationService(db).refresh(payload.refresh_token)
 
 
 @router.post("/logout", response_model=MessageResponse)
 def logout(payload: LogoutRequest, db: Session = Depends(get_db)):
-    session = db.query(AuthSession).filter(AuthSession.refresh_token == payload.refresh_token).first()
-    if session:
-        db.delete(session)
-        db.commit()
+    AuthApplicationService(db).logout(payload.refresh_token)
     return MessageResponse(message="Logged out successfully.")
 
 
 @router.post("/verify-email", response_model=MessageResponse)
 def verify_email(payload: VerifyEmailRequest, db: Session = Depends(get_db)):
-    _ = payload, db
     return MessageResponse(message="Email verification is temporarily disabled.")
 
 
 @router.post("/resend-verification", response_model=VerificationResponse)
 def resend_verification(payload: ResendVerificationRequest, db: Session = Depends(get_db)):
-    _ = payload, db
     return VerificationResponse(message="Email verification is temporarily disabled.")
 
 
 @router.post("/forgot-password", response_model=MessageResponse)
 def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email.lower().strip()).first()
-    if not user or user.status.lower() == "deleted":
-        return MessageResponse(message="If the email exists, a reset link has been sent.")
-    if user.status.lower() == "banned":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is banned")
-
-    reset_token = create_password_reset_token(db, user)
-    send_password_reset_email(user, reset_token.token)
-    db.commit()
+    AuthApplicationService(db).forgot_password(payload.email)
     return MessageResponse(message="If the email exists, a reset link has been sent.")
 
 
 @router.post("/reset-password", response_model=MessageResponse)
 def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
-    reset_record = db.query(PasswordResetToken).filter(PasswordResetToken.token == payload.token).first()
-    if not reset_record or reset_record.used_at is not None or reset_record.expires_at < datetime.utcnow():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Reset token is invalid or expired.")
-
-    user = db.query(User).filter(User.id == reset_record.user_id).first()
-    if not user or user.status.lower() == "deleted":
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
-    if user.status.lower() == "banned":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is banned")
-
-    user.password_hash = hash_password(payload.password)
-    reset_record.used_at = datetime.utcnow()
-    db.query(AuthSession).filter(AuthSession.user_id == user.id).delete()
-    db.commit()
+    AuthApplicationService(db).reset_password(payload)
     return MessageResponse(message="Password has been reset successfully.")
 
 
@@ -267,29 +106,7 @@ def complete_profile(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if current_user.status.lower() == "deleted":
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
-    if current_user.status.lower() == "banned":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is banned")
-
-    username = payload.username.strip().lower()
-    existing = db.query(User).filter(User.username == username, User.id != current_user.id).first()
-    if existing:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already exists.")
-
-    current_user.username = username
-    current_user.full_name = payload.full_name.strip()
-    current_user.avatar_url = payload.avatar_url.strip() if payload.avatar_url else current_user.avatar_url
-    current_user.bio = payload.bio.strip() if payload.bio else current_user.bio
-    current_user.major = payload.major.strip() if payload.major else current_user.major
-    current_user.academic_year = payload.academic_year.strip() if payload.academic_year else current_user.academic_year
-    current_user.career_goal = payload.career_goal.strip() if payload.career_goal else current_user.career_goal
-    current_user.interest_tags = ",".join(
-        dict.fromkeys([tag.strip().lower() for tag in payload.interest_tags if tag.strip()])
-    ) or current_user.interest_tags
-    db.commit()
-    db.refresh(current_user)
-    return build_current_user_response(current_user)
+    return build_current_user_response(AuthApplicationService(db).complete_profile(current_user, payload))
 
 
 @router.get("/me", response_model=CurrentUserResponse)
@@ -299,11 +116,7 @@ def get_me(current_user: User = Depends(get_current_user)):
 
 @router.get("/users/{user_id}", response_model=UserResponse)
 def get_user_by_id(user_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    _ = current_user.id
-    user = db.query(User).filter(User.id == user_id, User.status == "active").first()
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
-    response = build_current_user_response(user)
+    response = build_current_user_response(AuthApplicationService(db).get_user(user_id))
     payload = response.model_dump()
     payload.pop("profile_completed", None)
     return UserResponse(**payload)

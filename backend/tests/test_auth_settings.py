@@ -11,6 +11,7 @@ def test_session_and_refresh_use_validated_token_settings():
     user = SimpleNamespace(id="user-id", email="user@example.com", role="Student", status="active")
     request = SimpleNamespace(client=None, headers={})
     db = Mock()
+    db.info = {}
     tokens = create_session_tokens(user, request, db)
     assert tokens.expires_in == settings.access_token_expire_minutes * 60
     assert decode_token(tokens.access_token)["sub"] == user.id
