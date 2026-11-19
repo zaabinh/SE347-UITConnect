@@ -66,7 +66,7 @@ export type AdminOverview = {
 };
 
 export async function getAdminOverview() {
-  const response = await api.get<AdminOverview>('/api/admin/analytics/overview');
+  const response = await api.get<AdminOverview>('/admin/analytics/overview');
   return response.data;
 }
 
@@ -78,7 +78,7 @@ export async function getAdminUsers(params: {
   sortBy?: 'created_at' | 'username' | 'email';
   sortOrder?: 'asc' | 'desc';
 }) {
-  const response = await api.get<PaginatedResponse<AdminUser>>('/api/admin/users', {
+  const response = await api.get<PaginatedResponse<AdminUser>>('/admin/users', {
     params: {
       page: params.page ?? 1,
       page_size: params.pageSize ?? 10,
@@ -92,14 +92,12 @@ export async function getAdminUsers(params: {
 }
 
 export async function banUser(userId: string, reason?: string) {
-  const response = await api.post<AdminUser>(`/api/admin/users/${userId}/ban`, undefined, {
-    params: { reason: reason || undefined },
-  });
+  const response = await api.put<AdminUser>(`/admin/users/${userId}/ban`, { reason: reason || undefined });
   return response.data;
 }
 
 export async function unbanUser(userId: string, reason?: string) {
-  const response = await api.post<AdminUser>(`/api/admin/users/${userId}/unban`, undefined, {
+  const response = await api.delete<AdminUser>(`/admin/users/${userId}/ban`, {
     params: { reason: reason || undefined },
   });
   return response.data;
@@ -111,7 +109,7 @@ export async function getAdminReports(params: {
   statusFilter?: 'pending' | 'reviewed' | 'dismissed' | 'resolved' | '';
   reason?: string;
 }) {
-  const response = await api.get<PaginatedResponse<AdminReport>>('/api/admin/reports', {
+  const response = await api.get<PaginatedResponse<AdminReport>>('/admin/reports', {
     params: {
       page: params.page ?? 1,
       page_size: params.pageSize ?? 10,
@@ -136,12 +134,12 @@ export async function moderateReport(
       }
 ) {
   const body = typeof payload === 'string' ? { status: payload, action: 'none' } : payload;
-  const response = await api.post<AdminReport>(`/api/admin/reports/${reportId}/moderate`, body);
+  const response = await api.put<AdminReport>(`/admin/reports/${reportId}/moderation`, body);
   return response.data;
 }
 
 export async function getPendingPosts(params: { page?: number; pageSize?: number }) {
-  const response = await api.get<PaginatedResponse<PendingPost>>('/api/admin/posts/pending', {
+  const response = await api.get<PaginatedResponse<PendingPost>>('/admin/posts/pending', {
     params: {
       page: params.page ?? 1,
       page_size: params.pageSize ?? 10,
@@ -151,9 +149,9 @@ export async function getPendingPosts(params: { page?: number; pageSize?: number
 }
 
 export async function approvePost(postId: number) {
-  await api.post(`/api/admin/posts/${postId}/approve`);
+  await api.put(`/admin/posts/${postId}/moderation`, { status: 'active' });
 }
 
 export async function rejectPost(postId: number) {
-  await api.post(`/api/admin/posts/${postId}/reject`);
+  await api.put(`/admin/posts/${postId}/moderation`, { status: 'rejected' });
 }

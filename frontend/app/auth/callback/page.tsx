@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { saveAuthSession, saveStoredUser } from '@/lib/axios';
+import { getLocalRedirectPath } from '@/lib/authRedirect';
 
 function AuthCallbackContent() {
   const router = useRouter();
@@ -12,7 +13,7 @@ function AuthCallbackContent() {
   useEffect(() => {
     const accessToken = searchParams.get('access_token');
     const refreshToken = searchParams.get('refresh_token');
-    const nextPath = searchParams.get('next') || '/feed';
+    const nextPath = getLocalRedirectPath(searchParams.get('next'));
     const email = searchParams.get('email') || '';
     const verified = searchParams.get('verified') === 'true';
     const profileCompleted = searchParams.get('profile_completed') === 'true';

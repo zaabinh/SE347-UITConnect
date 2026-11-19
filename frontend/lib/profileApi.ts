@@ -4,7 +4,7 @@ import { api, fetchCurrentUser, saveStoredUser } from '@/lib/axios';
 
 export type ProfileSummary = {
   id: string;
-  username: string;
+  username: string | null;
   full_name: string;
   avatar_url: string | null;
   bio: string | null;
@@ -58,15 +58,15 @@ export type NotificationItem = {
   created_at: string;
 };
 
-export type UpdateProfilePayload = {
+export type UpdateProfilePayload = Partial<{
   full_name: string;
-  bio: string;
-  avatar_url: string;
-  major?: string;
-  academic_year?: string;
-  career_goal?: string;
+  bio: string | null;
+  avatar_url: string | null;
+  major?: string | null;
+  academic_year?: string | null;
+  career_goal?: string | null;
   interest_tags?: string[];
-};
+}>;
 
 export async function getMyProfile() {
   const response = await api.get<CurrentProfile>('/users/me');
@@ -74,55 +74,53 @@ export async function getMyProfile() {
 }
 
 export async function getUserProfile(username: string) {
-  const response = await api.get<ProfileSummary>(`/users/${username}`);
+  const response = await api.get<ProfileSummary>(`/users/by-username/${encodeURIComponent(username)}`);
   return response.data;
 }
 
 export async function getUserPosts(username: string) {
-  const response = await api.get<ProfilePost[]>(`/users/${username}/posts`);
+  const response = await api.get<ProfilePost[]>(`/users/by-username/${encodeURIComponent(username)}/posts`);
   return response.data;
 }
 
 export async function getUserComments(username: string) {
-  const response = await api.get<ProfileComment[]>(`/users/${username}/comments`);
+  const response = await api.get<ProfileComment[]>(`/users/by-username/${encodeURIComponent(username)}/comments`);
   return response.data;
 }
 
-export async function getUserBookmarks(username: string) {
-  const response = await api.get<ProfilePost[]>(`/users/${username}/bookmarks`);
+export async function getUserBookmarks() {
+  const response = await api.get<ProfilePost[]>('/users/me/bookmarks');
   return response.data;
 }
 
 export async function getMyNotifications(unreadOnly = false) {
-  const response = await api.get<NotificationItem[]>('/users/me/notifications', {
+  const response = await api.get<NotificationItem[]>('/notifications', {
     params: { unread_only: unreadOnly },
   });
   return response.data;
 }
 
 export async function markNotificationRead(notificationId: number) {
-  const response = await api.post<NotificationItem>(`/users/me/notifications/${notificationId}/read`);
+  const response = await api.put<NotificationItem>(`/notifications/${notificationId}/read`);
   return response.data;
 }
 
 export async function deleteReadNotification(notificationId: number) {
-  const response = await api.delete<{ message: string }>(`/users/me/notifications/${notificationId}`);
-  return response.data;
+  await api.delete<void>(`/notifications/${notificationId}`);
 }
 
 export async function updateMyProfile(payload: UpdateProfilePayload) {
-  const response = await api.put<CurrentProfile>('/users/me', payload);
+  const response = await api.patch<CurrentProfile>('/users/me', payload);
   const currentUser = await fetchCurrentUser();
   saveStoredUser(currentUser);
   return response.data;
 }
 
 export async function followUser(userId: string) {
-  const response = await api.post<{ message: string; following: boolean }>(`/follow/${userId}`);
+  const response = await api.put<{ following: boolean }>(`/users/${userId}/followers/me`);
   return response.data;
 }
 
 export async function unfollowUser(userId: string) {
-  const response = await api.delete<{ message: string; following: boolean }>(`/follow/${userId}`);
-  return response.data;
+  await api.delete<void>(`/users/${userId}/followers/me`);
 }

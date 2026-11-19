@@ -6,6 +6,8 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { getMyProfile, updateMyProfile } from '@/lib/profileApi';
 import { getTags } from '@/lib/forumApi';
+import { getErrorDetail } from '@/lib/axios';
+import { uploadImage } from '@/lib/mediaApi';
 
 const MAJORS = [
   'Computer Science',
@@ -31,6 +33,7 @@ export default function EditProfilePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [avatarPreview, setAvatarPreview] = useState('');
@@ -96,8 +99,19 @@ export default function EditProfilePage() {
     }));
   }, []);
 
-  const onAvatarUpload = (file?: File) => {
+  const onAvatarUpload = async (file?: File) => {
     if (!file) return;
+    setUploading(true);
+    setError('');
+    try {
+      const url = await uploadImage(file);
+      setForm((prev) => ({ ...prev, avatar_url: url }));
+    } catch (error) {
+      setError(getErrorDetail(error, 'Unable to upload avatar.'));
+      return;
+    } finally {
+      setUploading(false);
+    }
     const nextPreview = URL.createObjectURL(file);
     setAvatarPreview((prev) => {
       if (prev) URL.revokeObjectURL(prev);
@@ -146,7 +160,7 @@ export default function EditProfilePage() {
               </div>
               <label className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-300">
                 Upload
-                <input type="file" accept="image/*" className="hidden" onChange={(e) => onAvatarUpload(e.target.files?.[0])} />
+                <input type="file" accept="image/jpeg,image/png" disabled={uploading} className="hidden" onChange={(e) => onAvatarUpload(e.target.files?.[0])} />
               </label>
             </div>
             <div className="mt-3">
@@ -281,8 +295,9 @@ export default function EditProfilePage() {
           </Button>
           <Button
             type="button"
-            disabled={saving}
+            disabled={saving || uploading}
             onClick={async () => {
+              if (uploading) return;
               setSaving(true);
               setError('');
               try {

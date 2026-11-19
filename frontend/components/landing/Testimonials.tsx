@@ -48,7 +48,7 @@ export default function Testimonials() {
                 ))}
               </div>
               <div className="h-40 mb-6 overflow-hidden">
-                <p className="text-slate-700 text-lg leading-relaxed italic">"{testimonial.content}"</p>
+                <p className="text-slate-700 text-lg leading-relaxed italic">&quot;{testimonial.content}&quot;</p>
               </div>
               <div className="flex items-center justify-center gap-3">
                 <div className="h-12 w-12 overflow-hidden rounded-2xl bg-gradient-to-br from-blue-100 to-purple-100">
