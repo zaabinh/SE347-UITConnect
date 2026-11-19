@@ -64,6 +64,17 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     return problem(request, 422, 'Request validation failed.', errors=errors)
 
 
+def apply_error_cors(request, response):
+    """Apply the configured CORS policy to errors returned outside CORSMiddleware."""
+    origin = request.headers.get("origin")
+    if origin in request.app.state.settings.cors_allowed_origins:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Expose-Headers"] = "X-Request-ID, Location"
+        response.headers.add_vary_header("Origin")
+    return response
+
+
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     logger.error(
         "Unhandled error during %s %s",
@@ -73,12 +84,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
     )
     response = problem(request, 500, 'Internal server error.')
     # ServerErrorMiddleware sits outside CORSMiddleware, so its responses need CORS here.
-    origin = request.headers.get("origin")
-    if origin in request.app.state.settings.cors_allowed_origins:
-        response.headers["Access-Control-Allow-Origin"] = origin
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-        response.headers.add_vary_header("Origin")
-    return response
+    return apply_error_cors(request, response)
 
 
 def register_exception_handlers(app: FastAPI) -> None:

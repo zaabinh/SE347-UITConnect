@@ -2,7 +2,7 @@ from uuid import uuid4
 from starlette.datastructures import MutableHeaders
 from starlette.requests import Request
 from starlette.exceptions import HTTPException
-from app.core.exceptions import problem
+from app.core.exceptions import apply_error_cors, problem
 
 MEDIA_REQUEST_LIMIT = 6 * 1024 * 1024
 
@@ -25,7 +25,8 @@ class RequestIdMiddleware:
             except ValueError:
                 oversized = False
             if oversized:
-                response = problem(Request(scope), 413, 'Upload request exceeds 6 MiB.')
+                request = Request(scope)
+                response = apply_error_cors(request, problem(request, 413, 'Upload request exceeds 6 MiB.'))
                 return await response(scope, receive, send)
 
         received = 0

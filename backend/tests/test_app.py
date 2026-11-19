@@ -177,3 +177,22 @@ def test_cors_preflight_is_registered(runtime_app):
         })
     assert response.status_code == 200
     assert response.headers["Access-Control-Allow-Origin"] == origin
+
+
+@pytest.mark.parametrize("trusted", [True, False])
+def test_oversized_upload_problem_preserves_configured_cors(runtime_app, trusted):
+    application, _, _ = runtime_app
+    origin = settings.cors_allowed_origins[0] if trusted else "https://untrusted.example"
+    with TestClient(application) as client:
+        response = client.post("/api/v1/media/images", content=b"", headers={
+            "Origin": origin,
+            "Content-Length": str(6 * 1024 * 1024 + 1),
+        })
+    assert_problem(response, 413, "Upload request exceeds 6 MiB.", "PAYLOAD_TOO_LARGE")
+    if trusted:
+        assert response.headers["Access-Control-Allow-Origin"] == origin
+        assert response.headers["Access-Control-Allow-Credentials"] == "true"
+        assert "X-Request-ID" in response.headers["Access-Control-Expose-Headers"]
+        assert "Origin" in response.headers["Vary"]
+    else:
+        assert "Access-Control-Allow-Origin" not in response.headers
