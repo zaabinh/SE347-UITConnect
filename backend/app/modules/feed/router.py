@@ -12,10 +12,10 @@ from app.modules.feed.schemas import (
 from app.modules.feed import application
 
 
-router = APIRouter(prefix='/posts', tags=['Posts'])
+router = APIRouter(tags=['Discovery'])
 
 
-@router.get("/feed", response_model=PostListResponse)
+@router.get("/feed", response_model=PostListResponse, operation_id="feed_list")
 def get_posts_feed(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=10, ge=1, le=50),
@@ -38,7 +38,7 @@ def get_posts_feed(
     )
 
 
-@router.get("/trending/suggestions", response_model=TrendingPostListResponse)
+@router.get("/recommendations/trending", response_model=TrendingPostListResponse, operation_id="recommendations_list_trending")
 def get_trending_suggestions(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=10, ge=1, le=50),
@@ -56,9 +56,9 @@ def get_trending_suggestions(
     - **tag**: Lọc theo tag cụ thể (nếu có)
 
     Ví dụ:
-    - GET /posts/trending/suggestions → Top 10 trending posts 24h
-    - GET /posts/trending/suggestions?hours=7&page_size=20 → Top 20 trending posts 7 ngày
-    - GET /posts/trending/suggestions?tag=python → Trending posts về Python
+    - GET /api/v1/recommendations/trending → Top 10 trending posts 24h
+    - GET /api/v1/recommendations/trending?hours=7&page_size=20 → Top 20 trending posts 7 ngày
+    - GET /api/v1/recommendations/trending?tag=python → Trending posts về Python
     """
     return application.get_trending_suggestions(
         page=page,
@@ -70,7 +70,7 @@ def get_trending_suggestions(
     )
 
 
-@router.get("/trending/tags", response_model=TrendingTagListResponse)
+@router.get("/tags/trending", response_model=TrendingTagListResponse, operation_id="recommendations_list_trending_tags")
 def get_trending_tags_endpoint(
     limit: int = Query(default=10, ge=1, le=50),
     hours: int = Query(default=24, ge=1, le=168),
@@ -84,8 +84,8 @@ def get_trending_tags_endpoint(
     - **hours**: Xem xét bài viết trong bao nhiêu giờ qua (mặc định 24)
 
     Ví dụ:
-    - GET /posts/trending/tags → Top 10 trending tags
-    - GET /posts/trending/tags?limit=20&hours=7 → Top 20 tags trong 7 ngày
+    - GET /api/v1/tags/trending → Top 10 trending tags
+    - GET /api/v1/tags/trending?limit=20&hours=7 → Top 20 tags trong 7 ngày
     """
     return application.get_trending_tags_endpoint(
         limit=limit,
@@ -95,7 +95,7 @@ def get_trending_tags_endpoint(
     )
 
 
-@router.get("/{post_id}/similar", response_model=SimilarPostListResponse)
+@router.get("/recommendations/posts/{post_id}/similar", response_model=SimilarPostListResponse, operation_id="recommendations_list_similar")
 def get_similar_posts_endpoint(
     post_id: int,
     limit: int = Query(default=5, ge=1, le=20),
@@ -117,8 +117,8 @@ def get_similar_posts_endpoint(
     - **min_similarity**: Điểm tương đồng tối thiểu (mặc định 0.1, từ 0 tới 1)
 
     Ví dụ:
-    - GET /posts/1/similar → 5 bài tương tự bài #1
-    - GET /posts/1/similar?limit=10&min_similarity=0.2 → 10 bài có tương đồng ≥ 0.2
+    - GET /api/v1/recommendations/posts/1/similar → 5 bài tương tự bài #1
+    - GET /api/v1/recommendations/posts/1/similar?limit=10&min_similarity=0.2 → 10 bài có tương đồng ≥ 0.2
     """
     return application.get_similar_posts_endpoint(
         post_id=post_id,
@@ -129,7 +129,7 @@ def get_similar_posts_endpoint(
     )
 
 
-@router.get("/recommendations/collaborative", response_model=CollaborativePostListResponse)
+@router.get("/recommendations/collaborative", response_model=CollaborativePostListResponse, operation_id="recommendations_list_collaborative")
 def get_collaborative_recommendations_endpoint(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=10, ge=1, le=50),
@@ -158,9 +158,9 @@ def get_collaborative_recommendations_endpoint(
     - **days_back**: Xem xét bài viết trong bao nhiêu ngày (mặc định 30, tối đa 365)
 
     Ví dụ:
-    - GET /posts/recommendations/collaborative → Top 10 gợi ý
-    - GET /posts/recommendations/collaborative?page_size=20&days_back=7 → 20 bài trong 7 ngày
-    - GET /posts/recommendations/collaborative?min_similarity=0.3 → Chỉ những user rất tương tự
+    - GET /api/v1/recommendations/collaborative → Top 10 gợi ý
+    - GET /api/v1/recommendations/collaborative?page_size=20&days_back=7 → 20 bài trong 7 ngày
+    - GET /api/v1/recommendations/collaborative?min_similarity=0.3 → Chỉ những user rất tương tự
     """
     return application.get_collaborative_recommendations_endpoint(
         page=page,
@@ -172,7 +172,7 @@ def get_collaborative_recommendations_endpoint(
     )
 
 
-@router.get("/recommendations/profile", response_model=ProfileBasedPostListResponse)
+@router.get("/recommendations/profile", response_model=ProfileBasedPostListResponse, operation_id="recommendations_list_profile")
 def get_profile_recommendations_endpoint(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=10, ge=1, le=50),
@@ -196,9 +196,9 @@ def get_profile_recommendations_endpoint(
     - **days_back**: Bài viết trong bao nhiêu ngày (mặc định 30, tối đa 365)
 
     Ví dụ:
-    - GET /posts/recommendations/profile → Gợi ý mặc định
-    - GET /posts/recommendations/profile?page_size=20 → 20 bài
-    - GET /posts/recommendations/profile?min_score=0.3&days_back=7 → Chỉ bài liên quan cao trong 7 ngày
+    - GET /api/v1/recommendations/profile → Gợi ý mặc định
+    - GET /api/v1/recommendations/profile?page_size=20 → 20 bài
+    - GET /api/v1/recommendations/profile?min_score=0.3&days_back=7 → Chỉ bài liên quan cao trong 7 ngày
     """
     return application.get_profile_recommendations_endpoint(
         page=page,
@@ -210,7 +210,7 @@ def get_profile_recommendations_endpoint(
     )
 
 
-@router.get("/profile/summary", response_model=UserProfileSummary)
+@router.get("/recommendations/profile-summary", response_model=UserProfileSummary, operation_id="recommendations_get_profile_summary")
 def get_profile_summary_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_active_verified_user),
@@ -227,7 +227,7 @@ def get_profile_summary_endpoint(
     - Recommendations count (số bài có thể gợi ý)
 
     Ví dụ:
-    - GET /posts/profile/summary → Tóm tắt profile
+    - GET /api/v1/recommendations/profile-summary → Tóm tắt profile
     """
     return application.get_profile_summary_endpoint(
         db=db,
@@ -235,7 +235,7 @@ def get_profile_summary_endpoint(
     )
 
 
-@router.get("/profile/analysis", response_model=ProfileAnalysisResponse)
+@router.get("/recommendations/profile-analysis", response_model=ProfileAnalysisResponse, operation_id="recommendations_get_profile_analysis")
 def get_profile_analysis_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_active_verified_user),
@@ -250,7 +250,7 @@ def get_profile_analysis_endpoint(
     - Khuyến nghị về cải thiện profile
 
     Ví dụ:
-    - GET /posts/profile/analysis → Phân tích profile
+    - GET /api/v1/recommendations/profile-analysis → Phân tích profile
     """
     return application.get_profile_analysis_endpoint(
         db=db,
