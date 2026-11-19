@@ -1,6 +1,7 @@
 """HTTP and concurrency checks restricted to the disposable migration database."""
 
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
@@ -39,7 +40,7 @@ def verify_api(engine):
             return db.scalar(select(func.count()).select_from(model))
 
     # No lifespan is entered: every request session is explicitly bound to the scratch DB.
-    with TestClient(app, raise_server_exceptions=False) as client:
+    with closing(TestClient(app, raise_server_exceptions=False)) as client:
         created = client.post('/api/v1/posts', headers=headers[1], json={
             'title': 'SQL Server contract probe', 'content': 'Contract verification', 'tags': [],
         })
@@ -64,7 +65,7 @@ def verify_api(engine):
         assert count(PostView) == before + 1
 
         def like(_):
-            with TestClient(app, raise_server_exceptions=False) as requester:
+            with closing(TestClient(app, raise_server_exceptions=False)) as requester:
                 return requester.put(path + '/likes/me', headers=headers[2])
         likes_before = count(PostLike)
         notices_before = count(Notification)
@@ -89,7 +90,7 @@ def verify_api(engine):
         assert comment.json()['created_at'].endswith('Z')
 
         def report(_):
-            with TestClient(app, raise_server_exceptions=False) as requester:
+            with closing(TestClient(app, raise_server_exceptions=False)) as requester:
                 return requester.post(path + '/reports', headers=headers[2], json={'reason': 'spam'})
         reports_before = count(Report)
         with ThreadPoolExecutor(max_workers=2) as pool:

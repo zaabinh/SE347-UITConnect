@@ -142,7 +142,7 @@ def downgrade():
             expect_rejection(lambda: apply(test_engine, config, command.upgrade, 'head'), 'Contract migrations require')
             with test_engine.connect() as connection:
                 assert connection.execute(text('SELECT version_num FROM dbo.alembic_version')).scalar_one() == 'verification_expand'
-                assert connection.execute(text('SELECT migration_probe FROM dbo.users')).scalar_one() == 1
+                assert connection.execute(text("SELECT migration_probe FROM dbo.users WHERE username='migration_probe'")).scalar_one() == 1
             config.attributes['allow_contract'] = True
             apply(test_engine, config, command.upgrade, 'head')
             with test_engine.connect() as connection:
