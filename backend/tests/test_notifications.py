@@ -13,7 +13,7 @@ from app.modules.comments import router as comment_router
 from app.modules.posts import router as post_router
 from app.modules.notifications import router as user_router
 from app.modules.comments.schemas import CommentCreate
-from app.modules.moderation.schemas import ReportCreate, ReportModerate
+from app.modules.moderation.schemas import ReportCreate, ReportModerate, ModeratePostRequest
 from app.modules.notifications.service import create_notification, notify_admins, notify_followers
 from app.modules.moderation import application as admin_application
 from app.modules.comments import application as comment_application
@@ -74,6 +74,9 @@ class FakeSession:
     def rollback(self):
         pass
 
+    def get_bind(self):
+        return SimpleNamespace(dialect=SimpleNamespace(name='sqlite'))
+
     def query(self, model, *args):
         return FakeQuery(self.rows_by_model.get(model, []))
 
@@ -113,7 +116,7 @@ def make_user(user_id, username, role="Student", status="active"):
 
 
 def make_post(post_id=10, user_id="author-id", title="Notification post", status="active"):
-    post = Post(id=post_id, user_id=user_id, title=title, content="Body", status=status)
+    post = Post(id=post_id, user_id=user_id, title=title, content="Body", status=status, created_at=utc_now_naive())
     post.tags = []
     post.author = make_user(user_id, "author")
     return post
@@ -217,9 +220,9 @@ def test_post_approval_notifies_post_author(monkeypatch):
     db = FakeSession({Post: [post]})
     calls = collect_notifications(monkeypatch, admin_application)
 
-    response = admin_router.approve_post(post.id, current_user=admin, db=db)
+    response = admin_router.moderate_post(post.id, ModeratePostRequest(status='active'), current_user=admin, db=db)
 
-    assert response.message == "Post approved successfully."
+    assert response.status == 'active'
     assert post.status == "active"
     assert calls == [
         {
@@ -239,9 +242,9 @@ def test_like_notifies_post_author(monkeypatch):
     db = FakeSession({Post: [post], PostLike: []})
     calls = collect_notifications(monkeypatch, post_application)
 
-    response = post_router.toggle_like(post.id, current_user=actor, db=db)
+    response = post_router.like_post(post.id, current_user=actor, db=db)
 
-    assert response.message == "Post liked successfully."
+    assert response.liked is True
     assert calls[0]["user_id"] == "author-id"
     assert calls[0]["actor_id"] == "liker-id"
     assert calls[0]["notification_type"] == "post_like"
@@ -277,7 +280,8 @@ def test_admin_delete_post_notifies_author(monkeypatch):
 
     response = post_router.delete_post(post.id, current_user=admin, db=db)
 
-    assert response.message == "Post deleted successfully."
+    assert response.status_code == 204
+    assert response.body == b''
     assert post.status == "deleted"
     assert calls[0]["notification_type"] == "post_moderation"
     assert calls[0]["title"] == "Your post was removed"

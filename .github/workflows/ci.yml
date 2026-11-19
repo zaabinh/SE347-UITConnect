@@ -34,6 +34,17 @@ jobs:
         run: pip install -e ".[dev]"
       - name: Run tests
         run: python -m pytest -q
+      - name: Validate frozen API contract and documentation
+        env:
+          APP_ENV: test
+          DATABASE_URL: sqlite+pysqlite:///:memory:
+          FRONTEND_URL: http://localhost:3000
+          CORS_ALLOWED_ORIGINS: http://localhost:3000
+        run: python -m scripts.check_api_contract --check-docs --export .tmp/openapi.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: api-v1-openapi
+          path: backend/.tmp/openapi.json
       - name: Build backend image
         run: docker build --tag uitconnect-backend:ci .
       - name: Verify versioned SQL Server migrations
@@ -88,5 +99,9 @@ jobs:
         run: npm ci
       - name: Lint
         run: npm run lint
+      - name: Type check
+        run: npx tsc --noEmit
+      - name: API consumer contract tests
+        run: npm run test:contract
       - name: Build
         run: npm run build

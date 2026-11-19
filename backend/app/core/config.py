@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     public_api_url: HttpUrl | None = None
     google_client_id: str = ""
     google_client_secret: SecretStr = SecretStr("")
-    google_redirect_uri: HttpUrl = HttpUrl("http://127.0.0.1:8000/auth/google/callback")
+    google_redirect_uri: HttpUrl = HttpUrl("http://127.0.0.1:8000/api/v1/auth/google/callback")
     app_host: str = Field(default="0.0.0.0", min_length=1)
     app_port: int = Field(default=8000, ge=1, le=65535)
     port: int = Field(default=8000, ge=1, le=65535)
