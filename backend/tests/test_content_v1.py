@@ -163,6 +163,19 @@ def test_patch_omission_and_null(api):
     assert response.status_code == 200 and response.json()['cover_image'] is None
 
 
+def test_patch_rejects_mixed_known_and_unknown_fields_without_persisting(api):
+    client, db, post, owner, _, _, selected = api
+    selected[0] = owner
+    response = client.patch(f'/api/v1/posts/{post.id}', json={'title': 'Updated title', 'unknown': 'value'})
+    assert response.status_code == 422
+    db.expire_all()
+    persisted = db.get(Post, post.id)
+    assert persisted.title == 'Original post'
+    assert persisted.content == 'Body'
+    assert persisted.cover_image == 'https://example.test/cover.png'
+    assert persisted.status == 'active'
+
+
 def test_repeat_share_has_unique_slug_and_bounded_title(api):
     client, db, post, *_ = api
     post.title = 'A' * 255
@@ -259,6 +272,18 @@ def test_tag_routes_and_empty_pages(api):
     assert deleted.status_code == 204 and not deleted.content
     assert client.get('/api/v1/tags').json() == []
     assert client.get('/api/v1/admin/posts/pending').json()['meta']['total_pages'] == 0
+
+
+def test_tag_patch_rejects_mixed_known_and_unknown_fields_without_persisting(api):
+    client, db, _, _, _, admin, selected = api
+    selected[0] = admin
+    created = client.post('/api/v1/admin/tags', json={'name': 'Python'})
+    assert created.status_code == 201
+    tag_id = created.json()['id']
+    response = client.patch(f'/api/v1/admin/tags/{tag_id}', json={'name': 'Databases', 'unknown': 'value'})
+    assert response.status_code == 422
+    db.expire_all()
+    assert client.get('/api/v1/admin/tags').json() == [created.json()]
 
 
 def test_ranked_pagination_reports_only_servable_candidates(api):
