@@ -222,7 +222,8 @@ def test_post_approval_notifies_post_author(monkeypatch):
 
     response = admin_router.moderate_post(post.id, ModeratePostRequest(status='active'), current_user=admin, db=db)
 
-    assert response.status == 'active'
+    assert response['status'] == 'active'
+    assert response['id'] == post.id
     assert post.status == "active"
     assert calls == [
         {
@@ -383,6 +384,7 @@ def test_user_can_delete_read_notification():
 
     response = user_router.delete_read_notification(read_notification.id, current_user=current_user, db=db)
 
-    assert response.message == "Notification deleted successfully."
+    assert response.status_code == 204
+    assert response.body == b''
     assert db.deleted == [read_notification]
     assert db.commits == 1

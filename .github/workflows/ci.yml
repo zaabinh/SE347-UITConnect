@@ -37,7 +37,7 @@ jobs:
       - name: Validate frozen API contract and documentation
         env:
           APP_ENV: test
-          DATABASE_URL: sqlite+pysqlite:///:memory:
+          DATABASE_URL: "sqlite+pysqlite:///:memory:"
           FRONTEND_URL: http://localhost:3000
           CORS_ALLOWED_ORIGINS: http://localhost:3000
         run: python -m scripts.check_api_contract --check-docs --export .tmp/openapi.json

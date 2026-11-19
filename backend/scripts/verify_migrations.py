@@ -80,7 +80,8 @@ def main() -> None:
         apply(test_engine, config, command.check)
         sessions = sessionmaker(test_engine)
         with sessions() as db:
-            with UnitOfWork(db):
+            with UnitOfWork(db) as uow:
+                uow.lock('migration-verification:outbox')
                 event = enqueue_email(db, 'probe@example.test', 'Outbox probe', 'Unicode: tiếng Việt')
                 db.flush()
                 event_id = event.id
