@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from app.modules.posts.schemas import PostResponse
-from app.core.schemas import PaginationMeta
+from app.core.schemas import PaginationMeta, UtcDateTime
 
 
 class TrendingPostResponse(BaseModel):
@@ -27,7 +27,7 @@ class TrendingTagResponse(BaseModel):
 class TrendingTagListResponse(BaseModel):
     """Danh sách tag trending"""
     items: list[TrendingTagResponse]
-    updated_at: str = Field(..., description="Thời gian cập nhật")
+    updated_at: UtcDateTime = Field(..., description="Thời gian cập nhật")
 
 
 class SimilarPostResponse(BaseModel):

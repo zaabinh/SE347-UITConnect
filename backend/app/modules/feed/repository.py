@@ -2,7 +2,7 @@
 
 from datetime import datetime, timedelta
 from types import SimpleNamespace
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, case, func, select
 from sqlalchemy.orm import Session, joinedload
 from app.modules.comments.models import Comment
 from app.modules.posts.models import Post, PostLike, PostShare, PostTag, PostView, Tag, Bookmark
@@ -49,43 +49,12 @@ def get_trending_posts(
     # Tính thời gian bắt đầu
     time_threshold = datetime.utcnow() - timedelta(hours=hours)
 
-    # Tạo query lấy stats của bài viết
-    likes_count = func.count(func.distinct(PostLike.user_id)).label("likes_count")
-    comments_count = func.count(func.distinct(Comment.id)).label("comments_count")
-    views_count = func.count(func.distinct(PostView.id)).label("views_count")
-    shares_count = func.count(func.distinct(PostShare.id)).label("shares_count")
-
-    query = (
-        select(Post)
-        .outerjoin(PostLike, PostLike.post_id == Post.id)
-        .outerjoin(Comment, Comment.post_id == Post.id)
-        .outerjoin(PostView, PostView.post_id == Post.id)
-        .outerjoin(PostShare, PostShare.post_id == Post.id)
-        .where(
-            and_(
-                Post.status == "active",
-                Post.created_at >= time_threshold
-            )
-        )
-        .group_by(Post.id)
-    )
-
-    # Nếu có tag_filter, join với tag
+    query = select(Post).where(Post.status == "active", Post.created_at >= time_threshold)
     if tag_filter:
-        query = query.join(PostTag, PostTag.post_id == Post.id).join(
-            Tag, Tag.id == PostTag.tag_id
-        ).where(Tag.name.ilike(f"%{tag_filter}%"))
-
-    # Lấy tổng số bài viết
-    total = db.execute(select(func.count()).select_from(query.subquery())).scalar_one()
-
-    # Offset và limit
+        query = query.where(Post.tags.any(PostTag.tag.has(Tag.name.ilike(f"%{tag_filter}%"))))
+    posts = db.execute(query.order_by(Post.created_at.desc(), Post.id.desc())).scalars().all()
+    total = len(posts)
     offset = (page - 1) * page_size
-
-    # Lấy bài viết
-    posts = db.execute(
-        query.order_by(Post.created_at.desc()).offset(offset).limit(page_size)
-    ).scalars().all()
 
     # Load relationships
     for post in posts:
@@ -163,9 +132,9 @@ def get_trending_posts(
         })
 
     # Sắp xếp theo score giảm dần
-    posts_with_scores.sort(key=lambda x: x["score"], reverse=True)
+    posts_with_scores.sort(key=lambda x: (x["score"], x["post"].id), reverse=True)
 
-    return posts_with_scores, Pagination(page=page, page_size=page_size, total=total)
+    return posts_with_scores[offset:offset + page_size], Pagination(page=page, page_size=page_size, total=total)
 
 
 
@@ -187,46 +156,36 @@ def get_trending_tags(
     """
     time_threshold = datetime.utcnow() - timedelta(hours=hours)
 
-    # Query lấy tag và số bài viết
-    trending_tags = (
-        db.query(
-            Tag.name,
-            func.count(func.distinct(Post.id)).label("post_count"),
-            func.sum(
-                func.count(func.distinct(PostLike.user_id)) * 4 +
-                func.count(func.distinct(Comment.id)) * 3 +
-                func.count(func.distinct(PostView.id))
-            ).label("trend_score")
+    # Aggregate each post first: SQL Server forbids SUM(COUNT(...)).
+    post_scores = (
+        select(
+            Post.id.label("post_id"),
+            (func.count(func.distinct(PostLike.user_id)) * 4
+             + func.count(func.distinct(Comment.id)) * 3
+             + func.count(func.distinct(PostView.id))).label("trend_score"),
         )
-        .join(PostTag, PostTag.tag_id == Tag.id)
-        .join(Post, Post.id == PostTag.post_id)
         .outerjoin(PostLike, PostLike.post_id == Post.id)
         .outerjoin(Comment, Comment.post_id == Post.id)
         .outerjoin(PostView, PostView.post_id == Post.id)
-        .where(
-            and_(
-                Post.status == "active",
-                Post.created_at >= time_threshold
-            )
-        )
+        .where(Post.status == "active", Post.created_at >= time_threshold)
+        .group_by(Post.id)
+        .subquery()
+    )
+    score = func.sum(post_scores.c.trend_score)
+    trending_tags = (
+        db.query(Tag.name, func.count(post_scores.c.post_id), score)
+        .join(PostTag, PostTag.tag_id == Tag.id)
+        .join(post_scores, post_scores.c.post_id == PostTag.post_id)
         .group_by(Tag.id, Tag.name)
-        .order_by(func.sum(
-            func.count(func.distinct(PostLike.user_id)) * 4 +
-            func.count(func.distinct(Comment.id)) * 3 +
-            func.count(func.distinct(PostView.id))
-        ).desc())
+        .order_by(score.desc(), Tag.id.desc())
         .limit(limit)
         .all()
     )
-
     return [
-        {
-            "tag_name": tag_name,
-            "post_count": post_count or 0,
-            "trend_score": float(trend_score or 0)
-        }
-        for tag_name, post_count, trend_score in trending_tags
+        {"tag_name": name, "post_count": count, "trend_score": float(trend_score or 0)}
+        for name, count, trend_score in trending_tags
     ]
+
 
 
 
@@ -285,7 +244,7 @@ def get_similar_posts(
             })
 
     # Sắp xếp theo similarity giảm dần
-    posts_with_similarity.sort(key=lambda x: x["similarity"], reverse=True)
+    posts_with_similarity.sort(key=lambda x: (x["similarity"], x["post"].id), reverse=True)
 
     # Lấy stats cho các bài
     post_ids = [p["post"].id for p in posts_with_similarity[:limit]]
@@ -482,6 +441,7 @@ def find_similar_users(
     all_users = (
         db.query(User.id)
         .filter(User.id != user_id, User.status == "active")
+        .order_by(User.id)
         .limit(500)
         .all()
     )
@@ -495,7 +455,7 @@ def find_similar_users(
             user_similarities.append((other_user_id, similarity))
 
     # Sắp xếp theo similarity giảm dần
-    user_similarities.sort(key=lambda x: x[1], reverse=True)
+    user_similarities.sort(key=lambda x: (x[1], x[0]), reverse=True)
 
     return user_similarities[:limit]
 
@@ -554,7 +514,7 @@ def get_collaborative_recommendations(
             PostLike.post_id,
             func.count(func.distinct(PostLike.user_id)).label("like_count"),
             func.sum(
-                func.case(
+                case(
                     (PostLike.user_id.in_(similar_user_ids), 1),
                     else_=0
                 )
@@ -609,7 +569,7 @@ def get_collaborative_recommendations(
         post_scores.append((post_id, score, similar_count))
 
     # Sắp xếp theo score giảm dần
-    post_scores.sort(key=lambda x: x[1], reverse=True)
+    post_scores.sort(key=lambda x: (x[1], x[0]), reverse=True)
 
     # Lấy total
     total = len(post_scores)
@@ -622,16 +582,14 @@ def get_collaborative_recommendations(
         return [], Pagination(page=page, page_size=page_size, total=total)
 
     # Lấy bài viết và stats
-    from sqlalchemy import case
-
     likes_count = func.count(func.distinct(PostLike.user_id)).label("likes_count")
     comments_count = func.count(func.distinct(Comment.id)).label("comments_count")
     views_count = func.count(func.distinct(PostView.id)).label("views_count")
     bookmarked = func.max(case((Bookmark.user_id == user_id, 1), else_=0)).label("is_bookmarked")
 
-    posts_query = (
+    stats_query = (
         select(
-            Post,
+            Post.id.label('post_id'),
             likes_count,
             comments_count,
             views_count,
@@ -643,8 +601,12 @@ def get_collaborative_recommendations(
         .outerjoin(Bookmark, Bookmark.post_id == Post.id)
         .where(Post.id.in_(page_post_ids), Post.status == "active")
         .group_by(Post.id)
+        .subquery()
     )
-
+    posts_query = select(
+        Post, stats_query.c.likes_count, stats_query.c.comments_count,
+        stats_query.c.views_count, stats_query.c.is_bookmarked,
+    ).join(stats_query, stats_query.c.post_id == Post.id)
     posts = db.execute(posts_query).all()
 
     # Load relationships
@@ -681,6 +643,7 @@ def get_collaborative_recommendations(
             "reason": "Được yêu thích bởi những người có sở thích giống bạn"
         })
 
+    result.sort(key=lambda item: (item["cf_score"], item["post"].id), reverse=True)
     return result, Pagination(page=page, page_size=page_size, total=total)
 
 
@@ -865,7 +828,7 @@ def get_profile_based_recommendations(
             })
 
     # Sắp xếp theo score giảm dần
-    posts_with_scores.sort(key=lambda x: x["score"], reverse=True)
+    posts_with_scores.sort(key=lambda x: (x["score"], x["post"].id), reverse=True)
 
     # Pagination
     total = len(posts_with_scores)
@@ -877,8 +840,6 @@ def get_profile_based_recommendations(
 
     # Lấy stats
     page_post_ids = [item["post"].id for item in page_data]
-
-    from sqlalchemy import case
 
     likes_count = func.count(func.distinct(PostLike.user_id)).label("likes_count")
     comments_count = func.count(func.distinct(Comment.id)).label("comments_count")
