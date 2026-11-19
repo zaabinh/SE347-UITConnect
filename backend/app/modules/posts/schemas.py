@@ -14,6 +14,8 @@ class CreatePostRequest(PostBase):
 
 
 class UpdatePostRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     title: str | None = Field(default=None, min_length=5, max_length=255)
     content: str | None = None
     cover_image: str | None = None
