@@ -2,7 +2,7 @@
 
 from datetime import datetime, timedelta
 from types import SimpleNamespace
-from sqlalchemy import and_, case, func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session, joinedload
 from app.modules.comments.models import Comment
 from app.modules.posts.models import Post, PostLike, PostShare, PostTag, PostView, Tag, Bookmark
