@@ -1,0 +1,771 @@
+{
+  "contract_version": "v1",
+  "frozen": true,
+  "legacy_endpoint_count": 58,
+  "conventions": {
+    "prefix": "/api/v1",
+    "legacy_aliases": false,
+    "trailing_slashes": false,
+    "error_media_type": "application/problem+json",
+    "error_schema": "ProblemDetails",
+    "error_fields": [
+      "type",
+      "title",
+      "status",
+      "detail",
+      "instance",
+      "code",
+      "request_id"
+    ],
+    "validation_extension": "errors",
+    "operation_id": "explicit unique domain_operation",
+    "public_author_fields": [
+      "id",
+      "username",
+      "full_name",
+      "avatar_url",
+      "bio",
+      "role"
+    ],
+    "private_author_fields_forbidden": [
+      "email",
+      "provider",
+      "status",
+      "is_verified",
+      "password_hash"
+    ],
+    "patch": "Omitted fields remain unchanged. Nullable fields may be explicitly cleared; non-nullable fields reject explicit null. Empty patches rejected.",
+    "pagination": "Offset page/page_size with deterministic ID tie-breakers. Empty total_pages=0. Existing unpaginated arrays/tree remain arrays; no cursor API.",
+    "dates": "ISO 8601 UTC with Z; stored naive SQL datetimes interpreted as UTC.",
+    "media": "Authenticated filesystem JPEG/PNG transitional upload; R2 planned, not implemented.",
+    "business": "Preserve ranking, UoW and outbox. Enforce post visibility on interactions. Serialize writes before commit where practical. Idempotent PUT membership, DELETE absent membership succeeds. Post moderation identical terminal decision ->200 without duplicate side effects; conflicting terminal decision ->409; same-state ban/unban no duplicate side effects.",
+    "shared_types": [
+      "PublicUserSummary",
+      "UtcDateTime",
+      "PaginationMeta",
+      "ProblemDetails"
+    ],
+    "documentation": "Only documentation subagent writes docs/API_CONTRACT.md after integration; reconcile existing API docs."
+  },
+  "endpoints": [
+    {
+      "legacy": [
+        "GET /api/admin/analytics/overview"
+      ],
+      "method": "GET",
+      "path": "/api/v1/admin/analytics/overview",
+      "operation_id": "admin_get_analytics",
+      "response": "AdminAnalyticsResponse",
+      "status": 200,
+      "request": null,
+      "security": "admin"
+    },
+    {
+      "legacy": [
+        "GET /api/admin/posts/pending"
+      ],
+      "method": "GET",
+      "path": "/api/v1/admin/posts/pending",
+      "operation_id": "admin_list_pending_posts",
+      "response": "AdminPostsListResponse",
+      "status": 200,
+      "request": null,
+      "security": "admin"
+    },
+    {
+      "legacy": [
+        "POST /api/admin/posts/{post_id}/approve",
+        "POST /api/admin/posts/{post_id}/reject"
+      ],
+      "method": "PUT",
+      "path": "/api/v1/admin/posts/{post_id}/moderation",
+      "operation_id": "admin_moderate_post",
+      "response": "AdminPostModerationResponse",
+      "status": 200,
+      "request": "ModeratePostRequest",
+      "security": "admin"
+    },
+    {
+      "legacy": [
+        "GET /api/admin/reports"
+      ],
+      "method": "GET",
+      "path": "/api/v1/admin/reports",
+      "operation_id": "admin_list_reports",
+      "response": "AdminReportsListResponse",
+      "status": 200,
+      "request": null,
+      "security": "admin"
+    },
+    {
+      "legacy": [
+        "POST /api/admin/reports/{report_id}/moderate"
+      ],
+      "method": "PUT",
+      "path": "/api/v1/admin/reports/{report_id}/moderation",
+      "operation_id": "admin_moderate_report",
+      "response": "ReportResponse",
+      "status": 200,
+      "request": "ModerateReportRequest",
+      "security": "admin"
+    },
+    {
+      "legacy": [
+        "GET /api/admin/tags"
+      ],
+      "method": "GET",
+      "path": "/api/v1/admin/tags",
+      "operation_id": "admin_list_tags",
+      "response": "TagResponse[]",
+      "status": 200,
+      "request": null,
+      "security": "admin"
+    },
+    {
+      "legacy": [
+        "POST /api/admin/tags"
+      ],
+      "method": "POST",
+      "path": "/api/v1/admin/tags",
+      "operation_id": "admin_create_tag",
+      "response": "TagResponse",
+      "status": 201,
+      "request": "CreateTagRequest",
+      "security": "admin"
+    },
+    {
+      "legacy": [
+        "DELETE /api/admin/tags/{tag_id}"
+      ],
+      "method": "DELETE",
+      "path": "/api/v1/admin/tags/{tag_id}",
+      "operation_id": "admin_delete_tag",
+      "response": null,
+      "status": 204,
+      "request": null,
+      "security": "admin"
+    },
+    {
+      "legacy": [
+        "PUT /api/admin/tags/{tag_id}"
+      ],
+      "method": "PATCH",
+      "path": "/api/v1/admin/tags/{tag_id}",
+      "operation_id": "admin_update_tag",
+      "response": "TagResponse",
+      "status": 200,
+      "request": "UpdateTagRequest",
+      "security": "admin"
+    },
+    {
+      "legacy": [
+        "GET /api/admin/users"
+      ],
+      "method": "GET",
+      "path": "/api/v1/admin/users",
+      "operation_id": "admin_list_users",
+      "response": "AdminUsersListResponse",
+      "status": 200,
+      "request": null,
+      "security": "admin"
+    },
+    {
+      "legacy": [
+        "POST /api/admin/users/{user_id}/unban"
+      ],
+      "method": "DELETE",
+      "path": "/api/v1/admin/users/{user_id}/ban",
+      "operation_id": "admin_unban_user",
+      "response": "AdminUserResponse",
+      "status": 200,
+      "request": null,
+      "security": "admin"
+    },
+    {
+      "legacy": [
+        "POST /api/admin/users/{user_id}/ban"
+      ],
+      "method": "PUT",
+      "path": "/api/v1/admin/users/{user_id}/ban",
+      "operation_id": "admin_ban_user",
+      "response": "AdminUserResponse",
+      "status": 200,
+      "request": "BanUserRequest",
+      "security": "admin"
+    },
+    {
+      "legacy": [
+        "POST /auth/forgot-password"
+      ],
+      "method": "POST",
+      "path": "/api/v1/auth/forgot-password",
+      "operation_id": "auth_forgot_password",
+      "response": "MessageResponse",
+      "status": 202,
+      "request": "ForgotPasswordRequest",
+      "security": "public"
+    },
+    {
+      "legacy": [
+        "GET /auth/google/callback"
+      ],
+      "method": "GET",
+      "path": "/api/v1/auth/google/callback",
+      "operation_id": "auth_google_callback",
+      "response": null,
+      "status": 307,
+      "request": null,
+      "security": "public"
+    },
+    {
+      "legacy": [
+        "GET /auth/google/login"
+      ],
+      "method": "GET",
+      "path": "/api/v1/auth/google/login",
+      "operation_id": "auth_google_login",
+      "response": null,
+      "status": 307,
+      "request": null,
+      "security": "public"
+    },
+    {
+      "legacy": [
+        "POST /auth/login"
+      ],
+      "method": "POST",
+      "path": "/api/v1/auth/login",
+      "operation_id": "auth_login",
+      "response": "TokenResponse",
+      "status": 200,
+      "request": "LoginRequest",
+      "security": "public"
+    },
+    {
+      "legacy": [
+        "POST /auth/logout"
+      ],
+      "method": "POST",
+      "path": "/api/v1/auth/logout",
+      "operation_id": "auth_logout",
+      "response": null,
+      "status": 204,
+      "request": "LogoutRequest",
+      "security": "public"
+    },
+    {
+      "legacy": [
+        "GET /auth/me"
+      ],
+      "method": "GET",
+      "path": "/api/v1/auth/me",
+      "operation_id": "auth_me",
+      "response": "CurrentUserIdentityResponse",
+      "status": 200,
+      "request": null,
+      "security": "authenticated"
+    },
+    {
+      "legacy": [
+        "POST /auth/refresh"
+      ],
+      "method": "POST",
+      "path": "/api/v1/auth/refresh",
+      "operation_id": "auth_refresh",
+      "response": "TokenResponse",
+      "status": 200,
+      "request": "RefreshTokenRequest",
+      "security": "public"
+    },
+    {
+      "legacy": [
+        "POST /auth/register"
+      ],
+      "method": "POST",
+      "path": "/api/v1/auth/register",
+      "operation_id": "auth_register",
+      "response": "VerificationResponse",
+      "status": 201,
+      "request": "RegisterRequest",
+      "security": "public"
+    },
+    {
+      "legacy": [
+        "POST /auth/resend-verification"
+      ],
+      "method": "POST",
+      "path": "/api/v1/auth/resend-verification",
+      "operation_id": "auth_resend_verification",
+      "response": "VerificationResponse",
+      "status": 200,
+      "request": "ResendVerificationRequest",
+      "security": "public"
+    },
+    {
+      "legacy": [
+        "POST /auth/reset-password"
+      ],
+      "method": "POST",
+      "path": "/api/v1/auth/reset-password",
+      "operation_id": "auth_reset_password",
+      "response": "MessageResponse",
+      "status": 200,
+      "request": "ResetPasswordRequest",
+      "security": "public"
+    },
+    {
+      "legacy": [
+        "POST /auth/verify-email"
+      ],
+      "method": "POST",
+      "path": "/api/v1/auth/verify-email",
+      "operation_id": "auth_verify_email",
+      "response": "MessageResponse",
+      "status": 200,
+      "request": "VerifyEmailRequest",
+      "security": "public"
+    },
+    {
+      "legacy": [
+        "GET /api/posts/feed"
+      ],
+      "method": "GET",
+      "path": "/api/v1/feed",
+      "operation_id": "feed_list",
+      "response": "PostListResponse",
+      "status": 200,
+      "request": null,
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "POST /upload/image"
+      ],
+      "method": "POST",
+      "path": "/api/v1/media/images",
+      "operation_id": "media_upload_image",
+      "response": "UploadImageResponse",
+      "status": 201,
+      "request": "multipart:file",
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "GET /users/me/notifications"
+      ],
+      "method": "GET",
+      "path": "/api/v1/notifications",
+      "operation_id": "notifications_list",
+      "response": "NotificationResponse[]",
+      "status": 200,
+      "request": null,
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "DELETE /users/me/notifications/{notification_id}"
+      ],
+      "method": "DELETE",
+      "path": "/api/v1/notifications/{notification_id}",
+      "operation_id": "notifications_delete",
+      "response": null,
+      "status": 204,
+      "request": null,
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "POST /users/me/notifications/{notification_id}/read"
+      ],
+      "method": "PUT",
+      "path": "/api/v1/notifications/{notification_id}/read",
+      "operation_id": "notifications_mark_read",
+      "response": "NotificationResponse",
+      "status": 200,
+      "request": null,
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "POST /api/posts/"
+      ],
+      "method": "POST",
+      "path": "/api/v1/posts",
+      "operation_id": "posts_create",
+      "response": "PostResponse",
+      "status": 201,
+      "request": "CreatePostRequest",
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "DELETE /api/posts/{post_id}"
+      ],
+      "method": "DELETE",
+      "path": "/api/v1/posts/{post_id}",
+      "operation_id": "posts_delete",
+      "response": null,
+      "status": 204,
+      "request": null,
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "GET /api/posts/{post_id}"
+      ],
+      "method": "GET",
+      "path": "/api/v1/posts/{post_id}",
+      "operation_id": "posts_get_by_id",
+      "response": "PostResponse",
+      "status": 200,
+      "request": null,
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "PUT /api/posts/{post_id}"
+      ],
+      "method": "PATCH",
+      "path": "/api/v1/posts/{post_id}",
+      "operation_id": "posts_update",
+      "response": "PostResponse",
+      "status": 200,
+      "request": "UpdatePostRequest",
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "POST /api/posts/{post_id}/bookmark"
+      ],
+      "method": "DELETE",
+      "path": "/api/v1/posts/{post_id}/bookmarks/me",
+      "operation_id": "posts_unbookmark",
+      "response": null,
+      "status": 204,
+      "request": null,
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "POST /api/posts/{post_id}/bookmark"
+      ],
+      "method": "PUT",
+      "path": "/api/v1/posts/{post_id}/bookmarks/me",
+      "operation_id": "posts_bookmark",
+      "response": "BookmarkResponse",
+      "status": 200,
+      "request": null,
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "GET /api/posts/{post_id}/comments/"
+      ],
+      "method": "GET",
+      "path": "/api/v1/posts/{post_id}/comments",
+      "operation_id": "comments_list",
+      "response": "CommentResponse[]",
+      "status": 200,
+      "request": null,
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "POST /api/posts/{post_id}/comments/"
+      ],
+      "method": "POST",
+      "path": "/api/v1/posts/{post_id}/comments",
+      "operation_id": "comments_create",
+      "response": "CommentResponse",
+      "status": 201,
+      "request": "CreateCommentRequest",
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "POST /api/posts/{post_id}/comments/{comment_id}/report"
+      ],
+      "method": "POST",
+      "path": "/api/v1/posts/{post_id}/comments/{comment_id}/reports",
+      "operation_id": "comments_create_report",
+      "response": "ReportResponse",
+      "status": 201,
+      "request": "CreateReportRequest",
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "POST /api/posts/{post_id}/like"
+      ],
+      "method": "DELETE",
+      "path": "/api/v1/posts/{post_id}/likes/me",
+      "operation_id": "posts_unlike",
+      "response": null,
+      "status": 204,
+      "request": null,
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "POST /api/posts/{post_id}/like"
+      ],
+      "method": "PUT",
+      "path": "/api/v1/posts/{post_id}/likes/me",
+      "operation_id": "posts_like",
+      "response": "LikeResponse",
+      "status": 200,
+      "request": null,
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "POST /api/posts/{post_id}/report"
+      ],
+      "method": "POST",
+      "path": "/api/v1/posts/{post_id}/reports",
+      "operation_id": "posts_create_report",
+      "response": "ReportResponse",
+      "status": 201,
+      "request": "CreateReportRequest",
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "POST /api/posts/{post_id}/share"
+      ],
+      "method": "POST",
+      "path": "/api/v1/posts/{post_id}/shares",
+      "operation_id": "posts_share",
+      "response": "SharePostResponse",
+      "status": 201,
+      "request": "SharePostRequest",
+      "security": "active_user"
+    },
+    {
+      "legacy": [],
+      "method": "POST",
+      "path": "/api/v1/posts/{post_id}/views",
+      "operation_id": "posts_record_view",
+      "response": null,
+      "status": 204,
+      "request": null,
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "GET /api/posts/recommendations/collaborative"
+      ],
+      "method": "GET",
+      "path": "/api/v1/recommendations/collaborative",
+      "operation_id": "recommendations_list_collaborative",
+      "response": "CollaborativePostListResponse",
+      "status": 200,
+      "request": null,
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "GET /api/posts/{post_id}/similar"
+      ],
+      "method": "GET",
+      "path": "/api/v1/recommendations/posts/{post_id}/similar",
+      "operation_id": "recommendations_list_similar",
+      "response": "SimilarPostListResponse",
+      "status": 200,
+      "request": null,
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "GET /api/posts/recommendations/profile"
+      ],
+      "method": "GET",
+      "path": "/api/v1/recommendations/profile",
+      "operation_id": "recommendations_list_profile",
+      "response": "ProfileBasedPostListResponse",
+      "status": 200,
+      "request": null,
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "GET /api/posts/profile/analysis"
+      ],
+      "method": "GET",
+      "path": "/api/v1/recommendations/profile-analysis",
+      "operation_id": "recommendations_get_profile_analysis",
+      "response": "ProfileAnalysisResponse",
+      "status": 200,
+      "request": null,
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "GET /api/posts/profile/summary"
+      ],
+      "method": "GET",
+      "path": "/api/v1/recommendations/profile-summary",
+      "operation_id": "recommendations_get_profile_summary",
+      "response": "UserProfileSummary",
+      "status": 200,
+      "request": null,
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "GET /api/posts/trending/suggestions"
+      ],
+      "method": "GET",
+      "path": "/api/v1/recommendations/trending",
+      "operation_id": "recommendations_list_trending",
+      "response": "TrendingPostListResponse",
+      "status": 200,
+      "request": null,
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "GET /api/posts/tags"
+      ],
+      "method": "GET",
+      "path": "/api/v1/tags",
+      "operation_id": "tags_list",
+      "response": "TagResponse[]",
+      "status": 200,
+      "request": null,
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "GET /api/posts/trending/tags"
+      ],
+      "method": "GET",
+      "path": "/api/v1/tags/trending",
+      "operation_id": "recommendations_list_trending_tags",
+      "response": "TrendingTagListResponse",
+      "status": 200,
+      "request": null,
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "GET /users/{username}"
+      ],
+      "method": "GET",
+      "path": "/api/v1/users/by-username/{username}",
+      "operation_id": "users_get_profile",
+      "response": "PublicUserProfileResponse",
+      "status": 200,
+      "request": null,
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "GET /users/{username}/comments"
+      ],
+      "method": "GET",
+      "path": "/api/v1/users/by-username/{username}/comments",
+      "operation_id": "users_list_comments",
+      "response": "UserCommentResponse[]",
+      "status": 200,
+      "request": null,
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "GET /users/{username}/posts"
+      ],
+      "method": "GET",
+      "path": "/api/v1/users/by-username/{username}/posts",
+      "operation_id": "users_list_posts",
+      "response": "UserPostResponse[]",
+      "status": 200,
+      "request": null,
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "GET /users/me"
+      ],
+      "method": "GET",
+      "path": "/api/v1/users/me",
+      "operation_id": "users_get_current",
+      "response": "CurrentUserProfileResponse",
+      "status": 200,
+      "request": null,
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "PUT /users/me"
+      ],
+      "method": "PATCH",
+      "path": "/api/v1/users/me",
+      "operation_id": "users_update_current",
+      "response": "CurrentUserProfileResponse",
+      "status": 200,
+      "request": "UpdateProfileRequest",
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "GET /users/{username}/bookmarks"
+      ],
+      "method": "GET",
+      "path": "/api/v1/users/me/bookmarks",
+      "operation_id": "users_list_bookmarks",
+      "response": "UserPostResponse[]",
+      "status": 200,
+      "request": null,
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "POST /auth/complete-profile"
+      ],
+      "method": "PUT",
+      "path": "/api/v1/users/me/profile-completion",
+      "operation_id": "users_complete_profile",
+      "response": "CurrentUserIdentityResponse",
+      "status": 200,
+      "request": "CompleteProfileRequest",
+      "security": "authenticated"
+    },
+    {
+      "legacy": [
+        "GET /auth/users/{user_id}"
+      ],
+      "method": "GET",
+      "path": "/api/v1/users/{user_id}",
+      "operation_id": "users_get_by_id",
+      "response": "PublicUserSummary",
+      "status": 200,
+      "request": null,
+      "security": "authenticated"
+    },
+    {
+      "legacy": [
+        "DELETE /follow/{user_id}"
+      ],
+      "method": "DELETE",
+      "path": "/api/v1/users/{user_id}/followers/me",
+      "operation_id": "users_unfollow",
+      "response": null,
+      "status": 204,
+      "request": null,
+      "security": "active_user"
+    },
+    {
+      "legacy": [
+        "POST /follow/{user_id}"
+      ],
+      "method": "PUT",
+      "path": "/api/v1/users/{user_id}/followers/me",
+      "operation_id": "users_follow",
+      "response": "FollowResponse",
+      "status": 200,
+      "request": null,
+      "security": "active_user"
+    }
+  ]
+}
