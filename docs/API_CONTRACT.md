@@ -932,7 +932,7 @@ Ví dụ JSON request:
 
 **Lỗi:** 401 UNAUTHORIZED khi thiếu/sai/hết hạn access token; 404 NOT_FOUND khi user của session đã deleted; 403 FORBIDDEN khi user banned/inactive/chưa hoàn thành profile. 422 VALIDATION_ERROR khi path/query/body không hợp lệ; 500 INTERNAL_ERROR khi có lỗi không dự kiến. 409 CONCURRENT_MODIFICATION nếu không lấy được khóa aggregate sau 10 giây; retry theo ngữ nghĩa thao tác. Dùng `ProblemDetails` và mẫu mục 13; mã/điều kiện ở đây bổ sung cho lỗi validation/xác thực chung. Các status dự phòng khai báo OpenAPI không có nghĩa mọi nhánh đều phát sinh chúng.
 
-**Hành vi, side effect và retry:** Trim title/content; chuẩn hóa tags. User thường tạo pending, tag chưa biết được giữ ở requested_new_tags để admin duyệt; admin tạo active và có thể tạo tag. Notification cho admin khi pending hoặc followers khi active, cùng transaction với bài. Trả Location: /api/v1/posts/{id}. POST lặp tạo bài mới.
+**Hành vi, side effect và retry:** Trim title trước validation minLength=5/maxLength=255; title chỉ có khoảng trắng hoặc quá ngắn sau trim bị 422 trước khi ghi DB. Trim content khi ghi; chuẩn hóa tags. User thường tạo pending, tag chưa biết được giữ ở requested_new_tags để admin duyệt; admin tạo active và có thể tạo tag. Notification cho admin khi pending hoặc followers khi active, cùng transaction với bài. Trả Location: /api/v1/posts/{id}. POST lặp tạo bài mới.
 
 ### `DELETE /api/v1/posts/{post_id}` — Xóa mềm bài viết
 
@@ -1067,7 +1067,7 @@ Ví dụ JSON request:
 
 **Lỗi:** 401 UNAUTHORIZED khi thiếu/sai/hết hạn access token; 404 NOT_FOUND khi user của session đã deleted; 403 FORBIDDEN khi user banned/inactive/chưa hoàn thành profile. 422 VALIDATION_ERROR khi path/query/body không hợp lệ; 500 INTERNAL_ERROR khi có lỗi không dự kiến. 409 CONCURRENT_MODIFICATION nếu không lấy được khóa aggregate sau 10 giây; retry theo ngữ nghĩa thao tác. 403 FORBIDDEN: không phải tác giả hoặc không có quyền hiển thị; 404 NOT_FOUND: thiếu/deleted. Dùng `ProblemDetails` và mẫu mục 13; mã/điều kiện ở đây bổ sung cho lỗi validation/xác thực chung. Các status dự phòng khai báo OpenAPI không có nghĩa mọi nhánh đều phát sinh chúng.
 
-**Hành vi, side effect và retry:** Chỉ tác giả được sửa, kể cả admin cũng không sửa bài người khác qua endpoint này. Omitted giữ nguyên, cover_image=null xóa ảnh; null của title/content/tags/status và {} bị 422. User thường sửa sẽ đưa bài về pending; status được gửi không trao quyền duyệt. Admin tác giả có thể đặt pending/active/rejected. Đồng bộ tags nếu có, trong cùng transaction. PUT moderation là luồng admin duyệt riêng.
+**Hành vi, side effect và retry:** Chỉ tác giả được sửa, kể cả admin cũng không sửa bài người khác qua endpoint này. title được trim trước validation minLength=5/maxLength=255; title rỗng/quá ngắn sau trim bị 422 trước khi ghi DB. Omitted giữ nguyên, cover_image=null xóa ảnh; null của title/content/tags/status và {} bị 422. User thường sửa sẽ đưa bài về pending; status được gửi không trao quyền duyệt. Admin tác giả có thể đặt pending/active/rejected. Đồng bộ tags nếu có, trong cùng transaction. PUT moderation là luồng admin duyệt riêng.
 
 ### `DELETE /api/v1/posts/{post_id}/bookmarks/me` — Thiết lập chưa bookmark
 
@@ -1336,7 +1336,7 @@ Ví dụ JSON request:
 
 **Lỗi:** 401 UNAUTHORIZED khi thiếu/sai/hết hạn access token; 404 NOT_FOUND khi user của session đã deleted; 403 FORBIDDEN khi user banned/inactive/chưa hoàn thành profile. 422 VALIDATION_ERROR khi path/query/body không hợp lệ; 500 INTERNAL_ERROR khi có lỗi không dự kiến. 409 CONCURRENT_MODIFICATION nếu không lấy được khóa aggregate sau 10 giây; retry theo ngữ nghĩa thao tác. 404 NOT_FOUND: post/parent thiếu hoặc parent không active/khác post; 403 FORBIDDEN: không có quyền xem post. Dùng `ProblemDetails` và mẫu mục 13; mã/điều kiện ở đây bổ sung cho lỗi validation/xác thực chung. Các status dự phòng khai báo OpenAPI không có nghĩa mọi nhánh đều phát sinh chúng.
 
-**Hành vi, side effect và retry:** Quyền hiển thị V. parent_id=null/bỏ qua tạo gốc; parent_id có giá trị phải là comment active thuộc cùng post. Trim content sau validation minLength=1 (không có ràng buộc minLength sau trim). Thông báo tác giả post và tác giả parent nếu khác người gọi; hai thông báo có thể cùng một người. Một Unit of Work. POST lặp tạo comment mới. Chưa có sửa/xóa comment.
+**Hành vi, side effect và retry:** Quyền hiển thị V. parent_id=null/bỏ qua tạo gốc; parent_id có giá trị phải là comment active thuộc cùng post. Trim content trước validation minLength=1; nội dung chỉ có khoảng trắng bị 422 và không ghi comment/notification. Thông báo tác giả post và tác giả parent nếu khác người gọi; hai thông báo có thể cùng một người. Một Unit of Work. POST lặp tạo comment mới. Chưa có sửa/xóa comment.
 
 ### `POST /api/v1/posts/{post_id}/comments/{comment_id}/reports` — Báo cáo bình luận
 
@@ -2580,12 +2580,16 @@ Quy ước status: user active/banned/deleted; post pending/active/rejected/dele
 
 ### `CreateCommentRequest`
 
+content được strip trước minLength=1; chuỗi chỉ có khoảng trắng bị 422 trước mọi ghi DB.
+
 | Field | Kiểu | Bắt buộc | Nullable | Ràng buộc / mặc định | Ý nghĩa |
 |---|---|---|---|---|---|
 | `content` | `string` | Có | Không | minLength=1 | Nội dung bài/bình luận; service trim khi ghi. |
 | `parent_id` | `integer / null` | Không | Có | — | ID comment cha cùng post, null là comment gốc. |
 
 ### `CreatePostRequest`
+
+title được strip trước minLength=5/maxLength=255; title quá ngắn sau trim bị 422 trước mọi ghi DB. content được trim khi service ghi nhưng không có minLength riêng.
 
 | Field | Kiểu | Bắt buộc | Nullable | Ràng buộc / mặc định | Ý nghĩa |
 |---|---|---|---|---|---|
@@ -2976,7 +2980,7 @@ Quy ước status: user active/banned/deleted; post pending/active/rejected/dele
 
 ### `UpdatePostRequest`
 
-Ràng buộc ngoài JSON Schema: ít nhất một key. Chỉ cover_image nullable; title/content/tags/status omittable nhưng không nhận explicit null. Extra field bị từ chối.
+Ràng buộc ngoài JSON Schema: ít nhất một key. Chỉ cover_image nullable; title/content/tags/status omittable nhưng không nhận explicit null. Extra field bị từ chối. title được strip trước minLength=5/maxLength=255.
 
 `additionalProperties=false`: không chấp nhận field lạ.
 
@@ -3055,7 +3059,7 @@ Ràng buộc ngoài JSON Schema: ít nhất một key; full_name/interest_tags k
 
 | Field | Kiểu | Bắt buộc | Nullable | Ràng buộc / mặc định | Ý nghĩa |
 |---|---|---|---|---|---|
-| `loc` | `string / integer[]` | Có | Không | — | Vị trí trường sai gồm body/query/path và tên trường/chỉ số. |
+| `loc` | `(string / integer)[]` | Có | Không | — | Vị trí trường sai gồm body/query/path và tên trường/chỉ số. |
 | `msg` | `string` | Có | Không | — | Thông điệp đã khử input: Field required. hoặc Invalid value. |
 | `type` | `string` | Có | Không | — | Loại lỗi validation máy đọc, ví dụ missing/string_too_short. |
 
@@ -3197,7 +3201,7 @@ check_api_contract kiểm tra OpenAPI 3.1, ref DTO, không trùng route/operatio
 
 Kiểm tra tích hợp cần SQL Server/migration/provider/email thật phải chạy trong môi trường có hạ tầng đó; unit/contract tests không tự chứng minh provider redirect registration, email delivery, live R2 (chưa triển khai) hoặc production persistence. Lệnh và kết quả thực tế của release phải được báo cáo từ lần chạy thật, không suy ra chỉ từ tài liệu.
 
-**Kết quả kiểm chứng đợt chuẩn hóa (19/11/2026):** bộ backend kết hợp chạy bằng môi trường pin đạt **345 passed, 39 warnings** (156.19 giây), gồm kiểm tra contract/nghiệp vụ và bộ HTTP security độc lập. Frontend đạt **13 contract tests**, TypeScript `tsc --noEmit`, lint (4 cảnh báo có từ trước) và Next production build **18 pages**. SQL Server thật đã kiểm tra baseline/adoption, expand-backfill-contract, Outbox, HTTP/private DTO, GET chỉ đọc, share atomic, concurrent likes/reports và migration/app locks; database thử nghiệm được xóa sau kiểm tra. Docker production image đã build và chạy entrypoint mặc định `python -m app`, HTTP health/OpenAPI 62 operations đạt; `docker compose config --quiet` đạt. Schema Linux container và môi trường pin local có cùng fingerprint. Đây là kết quả của đợt chạy cụ thể, không phải bảo đảm mọi môi trường. Browser E2E, cloud deployment, Google provider registration thực tế và email delivery thực tế chưa được kiểm tra; R2 vẫn chưa triển khai.
+**Kết quả kiểm chứng đợt chuẩn hóa (19/11/2026):** bộ backend kết hợp chạy bằng môi trường pin đạt **354 passed, 39 warnings** (195.95 giây), gồm kiểm tra contract/nghiệp vụ và bộ HTTP security độc lập. Frontend đạt **13 contract tests**, TypeScript `tsc --noEmit`, lint (4 cảnh báo có từ trước) và Next production build **18 pages**. SQL Server thật đã kiểm tra baseline/adoption, expand-backfill-contract, Outbox, HTTP/private DTO, GET chỉ đọc, share atomic, concurrent likes/reports và migration/app locks; database thử nghiệm được xóa sau kiểm tra. Docker production image đã build và chạy entrypoint mặc định `python -m app`, HTTP health/OpenAPI 62 operations đạt; `docker compose config --quiet` đạt. Schema Linux container và môi trường pin local có cùng fingerprint. Đây là kết quả của đợt chạy cụ thể, không phải bảo đảm mọi môi trường. Browser E2E, cloud deployment, Google provider registration thực tế và email delivery thực tế chưa được kiểm tra; R2 vẫn chưa triển khai.
 
 ## 17. Ánh xạ endpoint legacy sang v1 (Legacy-to-v1 Endpoint Mapping)
 
