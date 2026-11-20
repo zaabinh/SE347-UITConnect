@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { FiEye, FiTrendingUp } from 'react-icons/fi';
 import { PurePostActions } from '@/components/post/PostActions';
 import Tag from '@/components/ui/Tag';
-import { formatRelativeTime } from '@/lib/mockData';
+import { formatRelativeTime } from '@/lib/dateTime';
 import { Post, UserProfile } from '@/lib/types';
 
 type PostCardProps = {

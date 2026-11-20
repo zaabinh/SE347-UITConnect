@@ -7,7 +7,6 @@ import { BsBookmark, BsBookmarkFill } from 'react-icons/bs';
 import { FaRegComment } from 'react-icons/fa';
 import { FiFlag, FiShare2 } from 'react-icons/fi';
 import ReportDialog from '@/components/report/ReportDialog';
-import { useForum } from '@/lib/forumStore';
 import { reportPost } from '@/lib/forumApi';
 import { Post } from '@/lib/types';
 import { useToast } from '@/components/ui/Toast';
@@ -145,23 +144,9 @@ function PostActionsBase({ post, compact = false, onCommentClick, liked, bookmar
 
 const MemoPostActionsBase = memo(PostActionsBase);
 
-type ConnectedPostActionsProps = Omit<PostActionsProps, 'liked' | 'bookmarked' | 'onLikeToggle' | 'onBookmarkToggle'>;
-
 export function PurePostActions(props: PostActionsProps) {
   return <MemoPostActionsBase {...props} />;
 }
 
-export default function PostActions(props: ConnectedPostActionsProps) {
-  const { currentUser, toggleBookmark, togglePostLike } = useForum();
-
-  return (
-    <MemoPostActionsBase
-      {...props}
-      liked={currentUser.likedPostIds.includes(props.post.id)}
-      bookmarked={currentUser.bookmarkedPostIds.includes(props.post.id)}
-      onLikeToggle={togglePostLike}
-      onBookmarkToggle={toggleBookmark}
-    />
-  );
-}
+export default PurePostActions;
 

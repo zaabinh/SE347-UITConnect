@@ -57,10 +57,3 @@ export type EditorPostDraft = {
   tags: string[];
   image: string;
 };
-
-export type ForumSeed = {
-  users: UserProfile[];
-  posts: Post[];
-  comments: Comment[];
-  tags: string[];
-};

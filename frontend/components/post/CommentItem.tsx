@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Avatar from '@/components/ui/Avatar';
 import ReportDialog from '@/components/report/ReportDialog';
-import { formatRelativeTime } from '@/lib/mockData';
+import { formatRelativeTime } from '@/lib/dateTime';
 import { reportComment } from '@/lib/forumApi';
 import { CommentNode, UserProfile } from '@/lib/types';
 import { useToast } from '@/components/ui/Toast';

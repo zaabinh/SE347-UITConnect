@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { PurePostActions } from '@/components/post/PostActions';
 import CommentSection from '@/components/post/CommentSection';
 import Avatar from '@/components/ui/Avatar';
-import { formatRelativeTime } from '@/lib/mockData';
+import { formatRelativeTime } from '@/lib/dateTime';
 import { Post, UserProfile } from '@/lib/types';
 
 type PostDetailProps = {

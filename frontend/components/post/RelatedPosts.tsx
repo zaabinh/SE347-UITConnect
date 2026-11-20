@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useI18n } from '@/lib/i18n';
-import { formatRelativeTime } from '@/lib/mockData';
+import { formatRelativeTime } from '@/lib/dateTime';
 import { Post, UserProfile } from '@/lib/types';
 
 type RelatedPostsProps = {

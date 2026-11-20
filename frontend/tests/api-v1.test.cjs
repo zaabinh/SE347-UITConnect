@@ -383,13 +383,17 @@ test('public author type contains exactly the frozen fields and permits null use
   assert.equal(username.type.getText(source), 'string | null');
 });
 
-test('every direct API call uses a frozen method and relative v1 resource path', () => {
+test('production API consumers use frozen resources without legacy mock imports', () => {
   let checked = 0;
   for (const folder of ['app', 'components', 'lib']) {
     for (const file of fs.readdirSync(path.resolve(root, folder), { recursive: true })) {
       if (!/\.tsx?$/.test(file)) continue;
       const source = ts.createSourceFile(file, fs.readFileSync(path.resolve(root, folder, file), 'utf8'), ts.ScriptTarget.Latest, true);
       function visit(node) {
+        if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
+          assert.ok(!/(?:^|\/)(?:mockData|forumStore)(?:\.[jt]sx?)?$/.test(node.moduleSpecifier.text),
+            `${file}: production consumers must not import the legacy mock store or seed`);
+        }
         if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)
             && node.expression.expression.getText(source) === 'api'
             && ['get', 'post', 'put', 'patch', 'delete'].includes(node.expression.name.text)) {
