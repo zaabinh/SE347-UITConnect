@@ -4,7 +4,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import { api, fetchCurrentUser, getErrorDetail, getStoredUser, saveStoredUser } from '@/lib/axios';
+import { fetchCurrentUser, getErrorDetail, getStoredUser } from '@/lib/axios';
+import { completeProfile } from '@/lib/profileApi';
 import { getTags } from '@/lib/forumApi';
 import { uploadImage } from '@/lib/mediaApi';
 
@@ -165,7 +166,7 @@ function CompleteProfileContent() {
             setLoading(true);
             setError('');
             try {
-              const response = await api.put('/users/me/profile-completion', {
+              await completeProfile({
                 username: form.username,
                 full_name: form.fullName,
                 avatar_url: form.avatarUrl || null,
@@ -175,11 +176,9 @@ function CompleteProfileContent() {
                 career_goal: form.careerGoal || null,
                 interest_tags: form.interestTags,
               });
-              saveStoredUser(response.data);
-              await fetchCurrentUser();
               router.push('/feed');
-            } catch (submitError: any) {
-              setError(submitError?.response?.data?.detail || 'Unable to complete profile.');
+            } catch (submitError: unknown) {
+              setError(getErrorDetail(submitError, 'Unable to complete profile.'));
             } finally {
               setLoading(false);
             }

@@ -224,8 +224,8 @@ Baseline `20261119_01` đã được kiểm chứng trên SQL Server thật. Dat
 không chạy lại CREATE TABLE. Quy trình expand–backfill–contract và workflow migration
 riêng được mô tả tại [backend/alembic/README.md](backend/alembic/README.md).
 Entrypoint không chạy setup DB, kể cả khi biến cũ `RUN_DB_SETUP_ON_START` được bật.
-Khởi động thất bại nếu không kết nối được DB. `scripts.render_start` chỉ còn là
-alias tương thích gọi cùng launcher.
+Khởi động thất bại nếu không kết nối được DB. Dùng duy nhất `python -m app`
+để khởi động backend; alias launcher cũ đã được loại bỏ.
 
 ## Route chính
 

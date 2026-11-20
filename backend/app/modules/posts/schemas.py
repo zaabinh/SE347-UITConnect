@@ -40,10 +40,6 @@ class UpdatePostRequest(BaseModel):
         return self
 
 
-PostCreate = CreatePostRequest
-PostUpdate = UpdatePostRequest
-
-
 class SharePostRequest(BaseModel):
     caption: str | None = Field(default=None, max_length=2000)
 

@@ -64,9 +64,10 @@ def create_database_if_missing(database_url: str, wait_seconds: int) -> None:
 
 
 def run_upgrade() -> None:
-    from scripts.upgrade_db import main as upgrade_main
+    from alembic import command
+    from scripts.migrate import alembic_config
 
-    upgrade_main()
+    command.upgrade(alembic_config(), 'head')
 
 
 def run_seed() -> None:

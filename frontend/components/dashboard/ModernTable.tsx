@@ -32,7 +32,7 @@ function ModernTable() {
           <p className="eyebrow">Recent activity</p>
           <h3 className="section-title mt-2">Operational timeline</h3>
         </div>
-        <span className="rounded-full bg-uit-50 px-3 py-1 text-xs font-semibold text-uit-700">Updated live</span>
+        <span className="rounded-full bg-uit-50 px-3 py-1 text-xs font-semibold text-uit-700">Dữ liệu mẫu</span>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[680px]">

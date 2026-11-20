@@ -9,9 +9,9 @@ from app.modules.users import domain
 from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
 from app.modules.users.schemas import (
-    CurrentProfileResponse,
+    CurrentUserProfileResponse,
     FollowResponse,
-    ProfileResponse,
+    PublicUserProfileResponse,
     UpdateProfileRequest,
     UserCommentResponse,
     UserPostResponse,
@@ -25,7 +25,7 @@ def _require_user(user):
 
 
 def _profile(repo, user, current_user):
-    return ProfileResponse(**domain.profile_payload(
+    return PublicUserProfileResponse(**domain.profile_payload(
         user,
         current_user,
         followers_count=repo.followers_count(user.id),
@@ -37,7 +37,7 @@ def _profile(repo, user, current_user):
 
 def _current_profile(repo, user):
     profile = _profile(repo, user, user)
-    return CurrentProfileResponse(
+    return CurrentUserProfileResponse(
         email=user.email,
         role=user.role,
         status=user.status,

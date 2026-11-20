@@ -93,7 +93,7 @@ def test_production_accepts_custom_secret_and_redacts_secrets(config_env, monkey
     assert database_url not in str(error.value)
 
 
-@pytest.mark.parametrize("entrypoint", ["app.main", "app.__main__", "scripts.render_start"])
+@pytest.mark.parametrize("entrypoint", ["app.main", "app.__main__"])
 def test_production_fails_before_startup_side_effects(config_env, monkeypatch, entrypoint):
     monkeypatch.setenv("APP_ENV", "production")
     monkeypatch.setenv("JWT_SECRET_KEY", DEFAULT_JWT_SECRET)

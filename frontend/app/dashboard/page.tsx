@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import StatsCards from '@/components/dashboard/StatsCards';
+import ModernTable from '@/components/dashboard/ModernTable';
 import {
   AdminOverview,
   AdminReport,
@@ -76,6 +78,14 @@ export default function DashboardPage() {
 
   return (
     <DashboardLayout>
+      <section aria-label="Bản xem thử dashboard" className="space-y-4">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          Bản xem thử giao diện — các thẻ và bảng ngay bên dưới dùng dữ liệu mẫu.
+          Dữ liệu quản trị thực tế nằm trong phần Admin Operations.
+        </div>
+        <StatsCards />
+        <ModernTable />
+      </section>
       <section className="dashboard-card p-6">
         <h1 className="text-2xl font-semibold text-ink-900">Admin Operations</h1>
         {error ? <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p> : null}

@@ -59,9 +59,9 @@ python -m scripts.setup_local_db --wait 90
 python -m alembic check
 ```
 
-Schema creation is entirely versioned. Legacy `scripts.init_db` and
-`scripts.upgrade_db` delegate to Alembic. Destructive `--reset`, ORM `create_all`,
-and the old raw SQL upgrade runner have been removed from those commands.
+Schema creation is entirely versioned. Use `python -m scripts.migrate upgrade`
+to apply Alembic revisions. The legacy initialization and upgrade commands,
+destructive `--reset`, ORM `create_all`, and raw SQL upgrade runner are removed.
 Historical SQL files are references and must not be executed on a versioned DB.
 An empty target must use the baseline's `SQL_Latin1_General_CP1_CI_AS` database
 collation. The local setup helper uses that collation when creating a database;

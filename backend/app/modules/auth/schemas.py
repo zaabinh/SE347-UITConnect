@@ -109,7 +109,3 @@ class UserResponse(BaseModel):
 
 class CurrentUserIdentityResponse(UserResponse):
     profile_completed: bool
-
-
-# Internal compatibility for callers predating the versioned API.
-CurrentUserResponse = CurrentUserIdentityResponse

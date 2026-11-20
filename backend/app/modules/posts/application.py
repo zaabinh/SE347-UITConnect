@@ -71,22 +71,7 @@ def create_post(db, current_user, payload):
 
 
 def get_tags(db, current_user):
-    return _tag_list(PostRepository(db).tags(ordered=True))
-
-
-def _tag_list(tags):
-    return tags
-
-
-def get_all_tags(db):
-    return _tag_list(PostRepository(db).tags())
-
-
-def get_posts_by_tag(db, tag_slug):
-    tag = PostRepository(db).tag_by_slug(tag_slug)
-    if tag is None:
-        raise ApplicationError(status_code=404, detail="Không tìm thấy nhãn dán này.")
-    return tag.posts
+    return PostRepository(db).tags(ordered=True)
 
 
 def get_post_detail(db, current_user, post_id):

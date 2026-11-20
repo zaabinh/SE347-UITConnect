@@ -11,7 +11,7 @@ from app.modules.comments.models import Comment
 from app.modules.notifications.models import Notification
 from app.modules.posts import application
 from app.modules.posts.models import Bookmark, Post, PostLike, PostShare, PostTag, PostView, Tag
-from app.modules.posts.schemas import PostCreate, PostUpdate, SharePostRequest
+from app.modules.posts.schemas import CreatePostRequest, UpdatePostRequest, SharePostRequest
 from app.modules.users.models import Follow, User
 
 
@@ -130,7 +130,7 @@ def test_student_share_stays_pending_and_notifies_original_author(posts_db):
 
 def test_owner_update_returns_pending_post_and_requests_unknown_tags(posts_db):
     db, author, _, _, post = posts_db
-    response = application.update_post(db, author, post.id, PostUpdate(title="Edited title", tags=[" PYTHON ", "new-tag"]))
+    response = application.update_post(db, author, post.id, UpdatePostRequest(title="Edited title", tags=[" PYTHON ", "new-tag"]))
     assert response.title == "Edited title"
     assert response.status == "pending"
     assert response.tags == ["python"]
@@ -140,7 +140,7 @@ def test_owner_update_returns_pending_post_and_requests_unknown_tags(posts_db):
 
 def test_create_and_detail_include_persisted_tags_and_view_count(posts_db):
     db, _, sharer, _, _ = posts_db
-    created = application.create_post(db, sharer, PostCreate(title="Fresh post", content=" Body ", tags=["new-tag"]))
+    created = application.create_post(db, sharer, CreatePostRequest(title="Fresh post", content=" Body ", tags=["new-tag"]))
     assert created.tags == ["new-tag"]
     assert created.status == "active"
     detail = application.get_post_detail(db, sharer, created.id)
@@ -160,7 +160,7 @@ def test_student_cannot_view_another_pending_post_or_update_as_admin(posts_db):
     assert hidden.value.status_code == 403
     assert count(db, PostView) == 0
     with pytest.raises(ApplicationError) as forbidden:
-        application.update_post(db, sharer, post.id, PostUpdate(title="Admin cannot edit"))
+        application.update_post(db, sharer, post.id, UpdatePostRequest(title="Admin cannot edit"))
     assert forbidden.value.status_code == 403
     assert db.get(Post, post.id).title == "Original post"
 

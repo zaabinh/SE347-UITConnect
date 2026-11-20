@@ -89,6 +89,18 @@ function problem(config, status = 401) {
     { status, data, headers: { 'content-type': 'application/problem+json' }, config });
 }
 
+test('profile completion uses v1 PUT, preserves its payload and stores the returned identity', async () => {
+  reset();
+  const payload = { username: 'student', full_name: 'Student Name', bio: null, interest_tags: ['python'] };
+  const result = await profile.completeProfile(payload);
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].method, 'put');
+  assert.equal(requests[0].url, '/users/me/profile-completion');
+  assert.deepEqual(body(), payload);
+  assert.deepEqual(result, identity);
+  assert.deepEqual(auth.getStoredUser(), identity);
+});
+
 test('forum clients send frozen paths, methods, bodies and preserve share IDs', async () => {
   reset();
   const cases = [

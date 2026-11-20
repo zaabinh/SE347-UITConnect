@@ -421,9 +421,6 @@ class PostRepository(Repository):
         query = self.query(Tag)
         return query.order_by(Tag.name.asc()).all() if ordered else query.all()
 
-    def tag_by_slug(self, slug: str):
-        return self.query(Tag).filter(Tag.slug == slug).first()
-
     def active_comment_count(self, post_id: int):
         return self.query(Comment).filter(Comment.post_id == post_id, Comment.status == "active").count()
 

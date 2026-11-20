@@ -1,6 +1,23 @@
 'use client';
 
-import { api, fetchCurrentUser, saveStoredUser } from '@/lib/axios';
+import { api, AuthUser, fetchCurrentUser, saveStoredUser } from '@/lib/axios';
+
+export type CompleteProfilePayload = {
+  username: string;
+  full_name: string;
+  avatar_url?: string | null;
+  bio?: string | null;
+  major?: string | null;
+  academic_year?: string | null;
+  career_goal?: string | null;
+  interest_tags?: string[];
+};
+
+export async function completeProfile(payload: CompleteProfilePayload) {
+  const response = await api.put<AuthUser>('/users/me/profile-completion', payload);
+  saveStoredUser(response.data);
+  return response.data;
+}
 
 export type ProfileSummary = {
   id: string;

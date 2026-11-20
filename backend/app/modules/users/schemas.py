@@ -71,7 +71,3 @@ class UserCommentResponse(BaseModel):
 class FollowResponse(BaseModel):
     message: str
     following: bool
-
-
-ProfileResponse = PublicUserProfileResponse
-CurrentProfileResponse = CurrentUserProfileResponse
