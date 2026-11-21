@@ -1,5 +1,16 @@
 # Đồ án SE104 - UITConnect
 
+## Nhiệm vụ Media của Đông
+
+- Người phụ trách: Đông (`@QuangDong-2006`).
+- Nhánh làm việc: `feature/cloudflare-r2-media-upload`, tạo từ `develop` tại commit `6b638b5`.
+- Nhiệm vụ: [Issue #5 — Cloudflare R2 Storage và Secure Media Upload](https://github.com/zaabinh/SE347-UITConnect/issues/5).
+- Trạng thái: đã soạn bản nháp thiết kế bước A, chờ Bình và API-01 review. Phần triển khai R2 chưa bắt đầu.
+- Đọc trước: [Thiết kế upload ảnh an toàn với Cloudflare R2](docs/MEDIA_R2_DESIGN_vi.md). Cuối tài liệu có bảng các quyết định cần xác nhận.
+- Tiếp theo: ghi nhận kết quả review, thống nhất API và chính sách storage, sau đó triển khai adapter cùng mocked tests.
+
+## Thông tin đồ án
+
 Giảng viên: Đỗ Văn Tiến
 
 ## Sinh Viên Thực Hiện

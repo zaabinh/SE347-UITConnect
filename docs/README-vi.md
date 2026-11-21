@@ -253,6 +253,7 @@ docker compose -f docker-compose.yml config
 
 ## Tài liệu liên quan
 
+- [Thiết kế upload ảnh an toàn với Cloudflare R2](MEDIA_R2_DESIGN_vi.md) — Đông phụ trách issue #5, bản nháp bước A đang chờ Bình và API-01 review.
 - `PROJECT_SUMMARY.md`
 - `PROJECT_SUMMARY_vi.md`
 - `docs/deploy.md`
