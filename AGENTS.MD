@@ -1,0 +1,8 @@
+- Minimize new files and abstractions.
+- Prefer modifying existing code over creating helpers.
+- Do not persist one-off scripts.
+- Use direct CLI commands when sufficient.
+- Retain scripts required for reproducible CI, testing, or deployment.
+- Avoid speculative infrastructure and unrelated refactoring.
+- Verify that every new file is necessary before completing a task.
+- Use Graphify and Ponytail

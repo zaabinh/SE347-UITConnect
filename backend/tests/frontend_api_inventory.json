@@ -1,0 +1,1347 @@
+{
+  "schema_version": 1,
+  "source_revision": "85ca80210a02919705498c585f641d951d159364",
+  "operations": [
+    {
+      "operation_id": "system_root",
+      "method": "GET",
+      "path": "/",
+      "status": "No Consumer",
+      "clients": [],
+      "consumers": [],
+      "notes": "Hạ tầng root; không có web frontend consumer.",
+      "maintainer": "Bình (zaabinh)",
+      "maintainer_evidence": [
+        "user-assignment: Infrastructure / API Governance",
+        "https://github.com/zaabinh/SE347-UITConnect/issues/1",
+        "https://github.com/zaabinh/SE347-UITConnect/issues/2"
+      ]
+    },
+    {
+      "operation_id": "admin_get_analytics",
+      "method": "GET",
+      "path": "/api/v1/admin/analytics/overview",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/adminApi.ts",
+          "symbol": "getAdminOverview"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/app/dashboard/page.tsx",
+          "symbol": "getAdminOverview"
+        }
+      ],
+      "notes": "Dashboard dùng analytics thật; StatsCards/ModernTable mẫu hiển thị riêng với nhãn dữ liệu mẫu.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "admin_moderate_post",
+      "method": "PUT",
+      "path": "/api/v1/admin/posts/{post_id}/moderation",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/adminApi.ts",
+          "symbol": "approvePost"
+        },
+        {
+          "file": "frontend/lib/adminApi.ts",
+          "symbol": "rejectPost"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/app/dashboard/page.tsx",
+          "symbol": "approvePost"
+        },
+        {
+          "file": "frontend/app/dashboard/page.tsx",
+          "symbol": "rejectPost"
+        }
+      ],
+      "notes": "Luồng ứng dụng gọi API thật; chưa khẳng định kiểm thử trình duyệt/deployment.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "admin_list_pending_posts",
+      "method": "GET",
+      "path": "/api/v1/admin/posts/pending",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/adminApi.ts",
+          "symbol": "getPendingPosts"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/app/dashboard/page.tsx",
+          "symbol": "getPendingPosts"
+        }
+      ],
+      "notes": "Luồng ứng dụng gọi API thật; chưa khẳng định kiểm thử trình duyệt/deployment.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "admin_list_reports",
+      "method": "GET",
+      "path": "/api/v1/admin/reports",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/adminApi.ts",
+          "symbol": "getAdminReports"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/app/dashboard/page.tsx",
+          "symbol": "getAdminReports"
+        }
+      ],
+      "notes": "Luồng ứng dụng gọi API thật; chưa khẳng định kiểm thử trình duyệt/deployment.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "admin_moderate_report",
+      "method": "PUT",
+      "path": "/api/v1/admin/reports/{report_id}/moderation",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/adminApi.ts",
+          "symbol": "moderateReport"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/app/dashboard/page.tsx",
+          "symbol": "moderateReport"
+        }
+      ],
+      "notes": "Luồng ứng dụng gọi API thật; chưa khẳng định kiểm thử trình duyệt/deployment.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "admin_list_tags",
+      "method": "GET",
+      "path": "/api/v1/admin/tags",
+      "status": "No Consumer",
+      "clients": [],
+      "consumers": [],
+      "notes": "Không tìm thấy luồng web gọi operation này.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "admin_create_tag",
+      "method": "POST",
+      "path": "/api/v1/admin/tags",
+      "status": "No Consumer",
+      "clients": [],
+      "consumers": [],
+      "notes": "Không tìm thấy luồng web gọi operation này.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "admin_delete_tag",
+      "method": "DELETE",
+      "path": "/api/v1/admin/tags/{tag_id}",
+      "status": "No Consumer",
+      "clients": [],
+      "consumers": [],
+      "notes": "Không tìm thấy luồng web gọi operation này.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "admin_update_tag",
+      "method": "PATCH",
+      "path": "/api/v1/admin/tags/{tag_id}",
+      "status": "No Consumer",
+      "clients": [],
+      "consumers": [],
+      "notes": "Không tìm thấy luồng web gọi operation này.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "admin_list_users",
+      "method": "GET",
+      "path": "/api/v1/admin/users",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/adminApi.ts",
+          "symbol": "getAdminUsers"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/app/dashboard/page.tsx",
+          "symbol": "getAdminUsers"
+        }
+      ],
+      "notes": "Luồng ứng dụng gọi API thật; chưa khẳng định kiểm thử trình duyệt/deployment.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "admin_unban_user",
+      "method": "DELETE",
+      "path": "/api/v1/admin/users/{user_id}/ban",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/adminApi.ts",
+          "symbol": "unbanUser"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/app/dashboard/page.tsx",
+          "symbol": "unbanUser"
+        }
+      ],
+      "notes": "Luồng ứng dụng gọi API thật; chưa khẳng định kiểm thử trình duyệt/deployment.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "admin_ban_user",
+      "method": "PUT",
+      "path": "/api/v1/admin/users/{user_id}/ban",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/adminApi.ts",
+          "symbol": "banUser"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/app/dashboard/page.tsx",
+          "symbol": "banUser"
+        }
+      ],
+      "notes": "Luồng ứng dụng gọi API thật; chưa khẳng định kiểm thử trình duyệt/deployment.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "auth_forgot_password",
+      "method": "POST",
+      "path": "/api/v1/auth/forgot-password",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/app/forgot-password/page.tsx",
+          "symbol": "/auth/forgot-password"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/app/forgot-password/page.tsx",
+          "symbol": "/auth/forgot-password"
+        }
+      ],
+      "notes": "Luồng ứng dụng gọi API thật; chưa khẳng định kiểm thử trình duyệt/deployment.",
+      "maintainer": "Thiện (Thien-create)",
+      "maintainer_evidence": [
+        "user-assignment: Authentication APIs",
+        "https://github.com/zaabinh/SE347-UITConnect/issues/6"
+      ]
+    },
+    {
+      "operation_id": "auth_google_callback",
+      "method": "GET",
+      "path": "/api/v1/auth/google/callback",
+      "status": "Planned",
+      "clients": [],
+      "consumers": [],
+      "notes": "Deferred — Future Phase. Backend callback cũ còn đăng ký, provider là caller nếu bật lại OAuth. app/auth/callback/page.tsx chỉ nhận redirect/token, không gọi callback backend. Không là blocker release.",
+      "maintainer": "Thiện (Thien-create)",
+      "maintainer_evidence": [
+        "user-assignment: Authentication APIs",
+        "https://github.com/zaabinh/SE347-UITConnect/issues/6"
+      ]
+    },
+    {
+      "operation_id": "auth_google_login",
+      "method": "GET",
+      "path": "/api/v1/auth/google/login",
+      "status": "Planned",
+      "clients": [
+        {
+          "file": "frontend/components/auth/RegisterForm.tsx",
+          "symbol": "googleLoginUrl"
+        }
+      ],
+      "consumers": [],
+      "notes": "Deferred — Future Phase. URL tồn tại nhưng nút Google bị JSX comment; không có luồng web đang bật.",
+      "maintainer": "Thiện (Thien-create)",
+      "maintainer_evidence": [
+        "user-assignment: Authentication APIs",
+        "https://github.com/zaabinh/SE347-UITConnect/issues/6"
+      ]
+    },
+    {
+      "operation_id": "auth_login",
+      "method": "POST",
+      "path": "/api/v1/auth/login",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/components/auth/LoginForm.tsx",
+          "symbol": "/auth/login"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/components/auth/LoginForm.tsx",
+          "symbol": "/auth/login"
+        }
+      ],
+      "notes": "Luồng ứng dụng gọi API thật; chưa khẳng định kiểm thử trình duyệt/deployment.",
+      "maintainer": "Thiện (Thien-create)",
+      "maintainer_evidence": [
+        "user-assignment: Authentication APIs",
+        "https://github.com/zaabinh/SE347-UITConnect/issues/6"
+      ]
+    },
+    {
+      "operation_id": "auth_logout",
+      "method": "POST",
+      "path": "/api/v1/auth/logout",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/axios.ts",
+          "symbol": "logout"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/components/layout/Sidebar.tsx",
+          "symbol": "logout"
+        },
+        {
+          "file": "frontend/components/layout/Topbar.tsx",
+          "symbol": "logout"
+        }
+      ],
+      "notes": "POST khi có refresh token lưu; sau đó xóa session cục bộ.",
+      "maintainer": "Thiện (Thien-create)",
+      "maintainer_evidence": [
+        "user-assignment: Authentication APIs",
+        "https://github.com/zaabinh/SE347-UITConnect/issues/6"
+      ]
+    },
+    {
+      "operation_id": "auth_me",
+      "method": "GET",
+      "path": "/api/v1/auth/me",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/axios.ts",
+          "symbol": "fetchCurrentUser"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/lib/useAuthGuard.ts",
+          "symbol": "fetchCurrentUser"
+        },
+        {
+          "file": "frontend/components/auth/LoginForm.tsx",
+          "symbol": "fetchCurrentUser"
+        },
+        {
+          "file": "frontend/app/complete-profile/page.tsx",
+          "symbol": "fetchCurrentUser"
+        },
+        {
+          "file": "frontend/app/post/[id]/page.tsx",
+          "symbol": "fetchCurrentUser"
+        },
+        {
+          "file": "frontend/app/edit/[id]/page.tsx",
+          "symbol": "fetchCurrentUser"
+        },
+        {
+          "file": "frontend/lib/profileApi.ts",
+          "symbol": "fetchCurrentUser"
+        }
+      ],
+      "notes": "Session restore qua useAuthGuard; updateMyProfile gọi auth/me sau PATCH. DTO khác users/me.",
+      "maintainer": "Thiện (Thien-create)",
+      "maintainer_evidence": [
+        "user-assignment: Authentication APIs",
+        "https://github.com/zaabinh/SE347-UITConnect/issues/6"
+      ]
+    },
+    {
+      "operation_id": "auth_refresh",
+      "method": "POST",
+      "path": "/api/v1/auth/refresh",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/axios.ts",
+          "symbol": "refreshAccessToken"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/lib/axios.ts",
+          "symbol": "refreshAccessToken"
+        }
+      ],
+      "notes": "Interceptor gọi khi gặp 401, retry một lần và chia sẻ refreshPromise; pages là nơi có request chịu interceptor, không trực tiếp refresh.",
+      "maintainer": "Thiện (Thien-create)",
+      "maintainer_evidence": [
+        "user-assignment: Authentication APIs",
+        "https://github.com/zaabinh/SE347-UITConnect/issues/6"
+      ]
+    },
+    {
+      "operation_id": "auth_register",
+      "method": "POST",
+      "path": "/api/v1/auth/register",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/components/auth/RegisterForm.tsx",
+          "symbol": "/auth/register"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/components/auth/RegisterForm.tsx",
+          "symbol": "/auth/register"
+        }
+      ],
+      "notes": "Luồng ứng dụng gọi API thật; chưa khẳng định kiểm thử trình duyệt/deployment.",
+      "maintainer": "Thiện (Thien-create)",
+      "maintainer_evidence": [
+        "user-assignment: Authentication APIs",
+        "https://github.com/zaabinh/SE347-UITConnect/issues/6"
+      ]
+    },
+    {
+      "operation_id": "auth_resend_verification",
+      "method": "POST",
+      "path": "/api/v1/auth/resend-verification",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/app/verify-email/page.tsx",
+          "symbol": "/auth/resend-verification"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/app/verify-email/page.tsx",
+          "symbol": "/auth/resend-verification"
+        }
+      ],
+      "notes": "Frontend gọi thật nhưng backend chỉ validate và trả verification temporarily disabled; không có email verification hoạt động.",
+      "maintainer": "Thiện (Thien-create)",
+      "maintainer_evidence": [
+        "user-assignment: Authentication APIs",
+        "https://github.com/zaabinh/SE347-UITConnect/issues/6"
+      ]
+    },
+    {
+      "operation_id": "auth_reset_password",
+      "method": "POST",
+      "path": "/api/v1/auth/reset-password",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/app/reset-password/page.tsx",
+          "symbol": "/auth/reset-password"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/app/reset-password/page.tsx",
+          "symbol": "/auth/reset-password"
+        }
+      ],
+      "notes": "Luồng ứng dụng gọi API thật; chưa khẳng định kiểm thử trình duyệt/deployment.",
+      "maintainer": "Thiện (Thien-create)",
+      "maintainer_evidence": [
+        "user-assignment: Authentication APIs",
+        "https://github.com/zaabinh/SE347-UITConnect/issues/6"
+      ]
+    },
+    {
+      "operation_id": "auth_verify_email",
+      "method": "POST",
+      "path": "/api/v1/auth/verify-email",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/app/verify-email/page.tsx",
+          "symbol": "/auth/verify-email"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/app/verify-email/page.tsx",
+          "symbol": "/auth/verify-email"
+        }
+      ],
+      "notes": "Frontend gọi thật nhưng backend chỉ validate và trả verification temporarily disabled; không có email verification hoạt động.",
+      "maintainer": "Thiện (Thien-create)",
+      "maintainer_evidence": [
+        "user-assignment: Authentication APIs",
+        "https://github.com/zaabinh/SE347-UITConnect/issues/6"
+      ]
+    },
+    {
+      "operation_id": "feed_list",
+      "method": "GET",
+      "path": "/api/v1/feed",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/forumApi.ts",
+          "symbol": "getFeed"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/components/post/PostList.tsx",
+          "symbol": "getFeed"
+        },
+        {
+          "file": "frontend/app/post/[id]/page.tsx",
+          "symbol": "getFeed"
+        }
+      ],
+      "notes": "Feed search/tag/mode/sort; chi tiết dùng fallback khi similar thất bại. Query tag URL chưa được khôi phục vào state.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "media_upload_image",
+      "method": "POST",
+      "path": "/api/v1/media/images",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/mediaApi.ts",
+          "symbol": "uploadImage"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/components/post/PostEditor.tsx",
+          "symbol": "uploadImage"
+        },
+        {
+          "file": "frontend/components/ui/AvatarPicker.tsx",
+          "symbol": "uploadImage"
+        },
+        {
+          "file": "frontend/app/complete-profile/page.tsx",
+          "symbol": "uploadImage"
+        },
+        {
+          "file": "frontend/app/profile/edit/page.tsx",
+          "symbol": "uploadImage"
+        }
+      ],
+      "notes": "Upload JPEG/PNG filesystem; R2 planned. AvatarPicker có call nhưng chưa có page dùng component này, không tính là active flow; các consumer khác có page đang dùng.",
+      "maintainer": "Đông (QuangDong-2006)",
+      "maintainer_evidence": [
+        "user-assignment: File upload / object storage",
+        "https://github.com/zaabinh/SE347-UITConnect/issues/5"
+      ]
+    },
+    {
+      "operation_id": "notifications_list",
+      "method": "GET",
+      "path": "/api/v1/notifications",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/profileApi.ts",
+          "symbol": "getMyNotifications"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/components/layout/Topbar.tsx",
+          "symbol": "getMyNotifications"
+        }
+      ],
+      "notes": "Topbar polling/list, đọc và xóa notification đã đọc; không có websocket consumer.",
+      "maintainer": "hmhdang",
+      "maintainer_evidence": [
+        "https://github.com/zaabinh/SE347-UITConnect/issues/8"
+      ]
+    },
+    {
+      "operation_id": "notifications_delete",
+      "method": "DELETE",
+      "path": "/api/v1/notifications/{notification_id}",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/profileApi.ts",
+          "symbol": "deleteReadNotification"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/components/layout/Topbar.tsx",
+          "symbol": "deleteReadNotification"
+        }
+      ],
+      "notes": "Topbar polling/list, đọc và xóa notification đã đọc; không có websocket consumer.",
+      "maintainer": "hmhdang",
+      "maintainer_evidence": [
+        "https://github.com/zaabinh/SE347-UITConnect/issues/8"
+      ]
+    },
+    {
+      "operation_id": "notifications_mark_read",
+      "method": "PUT",
+      "path": "/api/v1/notifications/{notification_id}/read",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/profileApi.ts",
+          "symbol": "markNotificationRead"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/components/layout/Topbar.tsx",
+          "symbol": "markNotificationRead"
+        }
+      ],
+      "notes": "Topbar polling/list, đọc và xóa notification đã đọc; không có websocket consumer.",
+      "maintainer": "hmhdang",
+      "maintainer_evidence": [
+        "https://github.com/zaabinh/SE347-UITConnect/issues/8"
+      ]
+    },
+    {
+      "operation_id": "posts_create",
+      "method": "POST",
+      "path": "/api/v1/posts",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/forumApi.ts",
+          "symbol": "createPost"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/components/post/PostList.tsx",
+          "symbol": "createPost"
+        },
+        {
+          "file": "frontend/app/create/page.tsx",
+          "symbol": "createPost"
+        }
+      ],
+      "notes": "Tạo nhanh Feed và editor /create; /post/create re-export cùng page.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "posts_delete",
+      "method": "DELETE",
+      "path": "/api/v1/posts/{post_id}",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/forumApi.ts",
+          "symbol": "deletePost"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/app/edit/[id]/page.tsx",
+          "symbol": "deletePost"
+        }
+      ],
+      "notes": "Luồng ứng dụng gọi API thật; chưa khẳng định kiểm thử trình duyệt/deployment.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "posts_get_by_id",
+      "method": "GET",
+      "path": "/api/v1/posts/{post_id}",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/forumApi.ts",
+          "symbol": "getPost"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/app/post/[id]/page.tsx",
+          "symbol": "getPost"
+        },
+        {
+          "file": "frontend/app/post/[id]/share/page.tsx",
+          "symbol": "getPost"
+        },
+        {
+          "file": "frontend/app/edit/[id]/page.tsx",
+          "symbol": "getPost"
+        }
+      ],
+      "notes": "Luồng ứng dụng gọi API thật; chưa khẳng định kiểm thử trình duyệt/deployment.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "posts_update",
+      "method": "PATCH",
+      "path": "/api/v1/posts/{post_id}",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/forumApi.ts",
+          "symbol": "updatePost"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/app/edit/[id]/page.tsx",
+          "symbol": "updatePost"
+        }
+      ],
+      "notes": "Luồng ứng dụng gọi API thật; chưa khẳng định kiểm thử trình duyệt/deployment.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "posts_unbookmark",
+      "method": "DELETE",
+      "path": "/api/v1/posts/{post_id}/bookmarks/me",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/forumApi.ts",
+          "symbol": "toggleBookmark"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/components/post/PostList.tsx",
+          "symbol": "toggleBookmark"
+        },
+        {
+          "file": "frontend/app/post/[id]/page.tsx",
+          "symbol": "toggleBookmark"
+        }
+      ],
+      "notes": "Callback truyền PurePostActions; PUT/DELETE chọn theo trạng thái đích, optimistic UI rollback khi request lỗi.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "posts_bookmark",
+      "method": "PUT",
+      "path": "/api/v1/posts/{post_id}/bookmarks/me",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/forumApi.ts",
+          "symbol": "toggleBookmark"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/components/post/PostList.tsx",
+          "symbol": "toggleBookmark"
+        },
+        {
+          "file": "frontend/app/post/[id]/page.tsx",
+          "symbol": "toggleBookmark"
+        }
+      ],
+      "notes": "Callback truyền PurePostActions; PUT/DELETE chọn theo trạng thái đích, optimistic UI rollback khi request lỗi.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "comments_list",
+      "method": "GET",
+      "path": "/api/v1/posts/{post_id}/comments",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/forumApi.ts",
+          "symbol": "getComments"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/components/post/CommentSection.tsx",
+          "symbol": "getComments"
+        }
+      ],
+      "notes": "Luồng ứng dụng gọi API thật; chưa khẳng định kiểm thử trình duyệt/deployment.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "comments_create",
+      "method": "POST",
+      "path": "/api/v1/posts/{post_id}/comments",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/forumApi.ts",
+          "symbol": "createComment"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/components/post/CommentSection.tsx",
+          "symbol": "createComment"
+        }
+      ],
+      "notes": "Luồng ứng dụng gọi API thật; chưa khẳng định kiểm thử trình duyệt/deployment.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "comments_create_report",
+      "method": "POST",
+      "path": "/api/v1/posts/{post_id}/comments/{comment_id}/reports",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/forumApi.ts",
+          "symbol": "reportComment"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/components/post/CommentItem.tsx",
+          "symbol": "reportComment"
+        }
+      ],
+      "notes": "Không có API like/edit/delete comment; like cục bộ UI không đại diện contract operation.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "posts_unlike",
+      "method": "DELETE",
+      "path": "/api/v1/posts/{post_id}/likes/me",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/forumApi.ts",
+          "symbol": "togglePostLike"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/components/post/PostList.tsx",
+          "symbol": "togglePostLike"
+        },
+        {
+          "file": "frontend/app/post/[id]/page.tsx",
+          "symbol": "togglePostLike"
+        }
+      ],
+      "notes": "Callback truyền PurePostActions; PUT/DELETE chọn theo trạng thái đích, optimistic UI rollback khi request lỗi.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "posts_like",
+      "method": "PUT",
+      "path": "/api/v1/posts/{post_id}/likes/me",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/forumApi.ts",
+          "symbol": "togglePostLike"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/components/post/PostList.tsx",
+          "symbol": "togglePostLike"
+        },
+        {
+          "file": "frontend/app/post/[id]/page.tsx",
+          "symbol": "togglePostLike"
+        }
+      ],
+      "notes": "Callback truyền PurePostActions; PUT/DELETE chọn theo trạng thái đích, optimistic UI rollback khi request lỗi.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "posts_create_report",
+      "method": "POST",
+      "path": "/api/v1/posts/{post_id}/reports",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/forumApi.ts",
+          "symbol": "reportPost"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/components/post/PostActions.tsx",
+          "symbol": "reportPost"
+        }
+      ],
+      "notes": "Luồng ứng dụng gọi API thật; chưa khẳng định kiểm thử trình duyệt/deployment.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "posts_share",
+      "method": "POST",
+      "path": "/api/v1/posts/{post_id}/shares",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/forumApi.ts",
+          "symbol": "sharePostWithEdit"
+        },
+        {
+          "file": "frontend/lib/forumApi.ts",
+          "symbol": "sharePost"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/app/post/[id]/share/page.tsx",
+          "symbol": "sharePostWithEdit"
+        }
+      ],
+      "notes": "PostActions mở trang chia sẻ, submit gọi sharePostWithEdit. Helper sharePost không có caller.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "posts_record_view",
+      "method": "POST",
+      "path": "/api/v1/posts/{post_id}/views",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/forumApi.ts",
+          "symbol": "recordPostView"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/app/post/[id]/page.tsx",
+          "symbol": "recordPostView"
+        }
+      ],
+      "notes": "Luồng ứng dụng gọi API thật; chưa khẳng định kiểm thử trình duyệt/deployment.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "recommendations_list_collaborative",
+      "method": "GET",
+      "path": "/api/v1/recommendations/collaborative",
+      "status": "No Consumer",
+      "clients": [
+        {
+          "file": "frontend/lib/forumApi.ts",
+          "symbol": "getCollaborativeRecommendations"
+        }
+      ],
+      "consumers": [],
+      "notes": "Chỉ có client helper, không tìm thấy caller trong app/components/hooks; No Consumer.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "recommendations_list_similar",
+      "method": "GET",
+      "path": "/api/v1/recommendations/posts/{post_id}/similar",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/forumApi.ts",
+          "symbol": "getSimilarPosts"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/app/post/[id]/page.tsx",
+          "symbol": "getSimilarPosts"
+        }
+      ],
+      "notes": "Luồng ứng dụng gọi API thật; chưa khẳng định kiểm thử trình duyệt/deployment.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "recommendations_list_profile",
+      "method": "GET",
+      "path": "/api/v1/recommendations/profile",
+      "status": "No Consumer",
+      "clients": [
+        {
+          "file": "frontend/lib/forumApi.ts",
+          "symbol": "getProfileBasedRecommendations"
+        }
+      ],
+      "consumers": [],
+      "notes": "Chỉ có client helper, không tìm thấy caller trong app/components/hooks; No Consumer.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "recommendations_get_profile_analysis",
+      "method": "GET",
+      "path": "/api/v1/recommendations/profile-analysis",
+      "status": "No Consumer",
+      "clients": [
+        {
+          "file": "frontend/lib/forumApi.ts",
+          "symbol": "getProfileAnalysis"
+        }
+      ],
+      "consumers": [],
+      "notes": "Chỉ có client helper, không tìm thấy caller trong app/components/hooks; No Consumer.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "recommendations_get_profile_summary",
+      "method": "GET",
+      "path": "/api/v1/recommendations/profile-summary",
+      "status": "No Consumer",
+      "clients": [
+        {
+          "file": "frontend/lib/forumApi.ts",
+          "symbol": "getUserProfileSummary"
+        }
+      ],
+      "consumers": [],
+      "notes": "Chỉ có client helper, không tìm thấy caller trong app/components/hooks; No Consumer.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "recommendations_list_trending",
+      "method": "GET",
+      "path": "/api/v1/recommendations/trending",
+      "status": "No Consumer",
+      "clients": [],
+      "consumers": [],
+      "notes": "Không tìm thấy luồng web gọi operation này.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "tags_list",
+      "method": "GET",
+      "path": "/api/v1/tags",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/forumApi.ts",
+          "symbol": "getTags"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/components/post/PostList.tsx",
+          "symbol": "getAllTags"
+        },
+        {
+          "file": "frontend/components/post/PostEditor.tsx",
+          "symbol": "getTags"
+        },
+        {
+          "file": "frontend/app/complete-profile/page.tsx",
+          "symbol": "getTags"
+        },
+        {
+          "file": "frontend/app/profile/edit/page.tsx",
+          "symbol": "getTags"
+        }
+      ],
+      "notes": "Luồng ứng dụng gọi API thật; chưa khẳng định kiểm thử trình duyệt/deployment.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "recommendations_list_trending_tags",
+      "method": "GET",
+      "path": "/api/v1/tags/trending",
+      "status": "No Consumer",
+      "clients": [],
+      "consumers": [],
+      "notes": "Không tìm thấy luồng web gọi operation này.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "users_get_by_id",
+      "method": "GET",
+      "path": "/api/v1/users/{user_id}",
+      "status": "No Consumer",
+      "clients": [],
+      "consumers": [],
+      "notes": "Không tìm thấy luồng web gọi operation này.",
+      "maintainer": "Thiện (Thien-create)",
+      "maintainer_evidence": [
+        "user-assignment: Authentication APIs",
+        "https://github.com/zaabinh/SE347-UITConnect/issues/6"
+      ]
+    },
+    {
+      "operation_id": "users_unfollow",
+      "method": "DELETE",
+      "path": "/api/v1/users/{user_id}/followers/me",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/profileApi.ts",
+          "symbol": "unfollowUser"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/components/profile/FollowButton.tsx",
+          "symbol": "unfollowUser"
+        }
+      ],
+      "notes": "FollowButton trên ProfileHeader và AuthorCard trang chi tiết.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "users_follow",
+      "method": "PUT",
+      "path": "/api/v1/users/{user_id}/followers/me",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/profileApi.ts",
+          "symbol": "followUser"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/components/profile/FollowButton.tsx",
+          "symbol": "followUser"
+        }
+      ],
+      "notes": "FollowButton trên ProfileHeader và AuthorCard trang chi tiết.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "users_get_profile",
+      "method": "GET",
+      "path": "/api/v1/users/by-username/{username}",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/profileApi.ts",
+          "symbol": "getUserProfile"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/components/profile/Profile.tsx",
+          "symbol": "getUserProfile"
+        },
+        {
+          "file": "frontend/app/post/[id]/page.tsx",
+          "symbol": "getUserProfile"
+        }
+      ],
+      "notes": "Luồng ứng dụng gọi API thật; chưa khẳng định kiểm thử trình duyệt/deployment.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "users_list_comments",
+      "method": "GET",
+      "path": "/api/v1/users/by-username/{username}/comments",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/profileApi.ts",
+          "symbol": "getUserComments"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/components/profile/Profile.tsx",
+          "symbol": "getUserComments"
+        }
+      ],
+      "notes": "Luồng ứng dụng gọi API thật; chưa khẳng định kiểm thử trình duyệt/deployment.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "users_list_posts",
+      "method": "GET",
+      "path": "/api/v1/users/by-username/{username}/posts",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/profileApi.ts",
+          "symbol": "getUserPosts"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/components/profile/Profile.tsx",
+          "symbol": "getUserPosts"
+        }
+      ],
+      "notes": "Luồng ứng dụng gọi API thật; chưa khẳng định kiểm thử trình duyệt/deployment.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "users_get_current",
+      "method": "GET",
+      "path": "/api/v1/users/me",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/profileApi.ts",
+          "symbol": "getMyProfile"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/components/profile/Profile.tsx",
+          "symbol": "getMyProfile"
+        },
+        {
+          "file": "frontend/components/post/PostList.tsx",
+          "symbol": "getMyProfile"
+        },
+        {
+          "file": "frontend/app/profile/edit/page.tsx",
+          "symbol": "getMyProfile"
+        },
+        {
+          "file": "frontend/app/profile/current-user/page.tsx",
+          "symbol": "getMyProfile"
+        }
+      ],
+      "notes": "Luồng ứng dụng gọi API thật; chưa khẳng định kiểm thử trình duyệt/deployment.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "users_update_current",
+      "method": "PATCH",
+      "path": "/api/v1/users/me",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/profileApi.ts",
+          "symbol": "updateMyProfile"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/app/profile/edit/page.tsx",
+          "symbol": "updateMyProfile"
+        }
+      ],
+      "notes": "Luồng ứng dụng gọi API thật; chưa khẳng định kiểm thử trình duyệt/deployment.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "users_list_bookmarks",
+      "method": "GET",
+      "path": "/api/v1/users/me/bookmarks",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/profileApi.ts",
+          "symbol": "getUserBookmarks"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/components/profile/Profile.tsx",
+          "symbol": "getUserBookmarks"
+        }
+      ],
+      "notes": "Luồng ứng dụng gọi API thật; chưa khẳng định kiểm thử trình duyệt/deployment.",
+      "maintainer": "TBD",
+      "maintainer_evidence": []
+    },
+    {
+      "operation_id": "users_complete_profile",
+      "method": "PUT",
+      "path": "/api/v1/users/me/profile-completion",
+      "status": "Integrated",
+      "clients": [
+        {
+          "file": "frontend/lib/profileApi.ts",
+          "symbol": "completeProfile"
+        }
+      ],
+      "consumers": [
+        {
+          "file": "frontend/app/complete-profile/page.tsx",
+          "symbol": "completeProfile"
+        }
+      ],
+      "notes": "Luồng ứng dụng gọi API thật; chưa khẳng định kiểm thử trình duyệt/deployment.",
+      "maintainer": "Thiện (Thien-create)",
+      "maintainer_evidence": [
+        "user-assignment: Authentication APIs",
+        "https://github.com/zaabinh/SE347-UITConnect/issues/6"
+      ]
+    },
+    {
+      "operation_id": "system_health",
+      "method": "GET",
+      "path": "/health",
+      "status": "No Consumer",
+      "clients": [],
+      "consumers": [],
+      "notes": "Hạ tầng: Docker Compose và Render healthCheckPath gọi /health; không có web frontend consumer. Health chỉ liveness, không chứng minh database readiness.",
+      "maintainer": "Bình (zaabinh)",
+      "maintainer_evidence": [
+        "user-assignment: Infrastructure / API Governance",
+        "https://github.com/zaabinh/SE347-UITConnect/issues/1",
+        "https://github.com/zaabinh/SE347-UITConnect/issues/2"
+      ]
+    }
+  ]
+}

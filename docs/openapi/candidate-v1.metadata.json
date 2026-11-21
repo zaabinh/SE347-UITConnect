@@ -1,0 +1,12 @@
+{
+  "approval": null,
+  "dependencies": {
+    "fastapi": "0.116.1",
+    "pydantic": "2.11.7"
+  },
+  "generator": "FastAPI create_app().openapi(), sorted JSON, UTF-8, LF",
+  "notes": "No approved PR/tag found. Initial API v1 baseline requires team acceptance separately from breaking changes.",
+  "sha256": "b84b41f737fb5ad4afacf7cc728b58a6e8758abb6245f22a87a320781e8fd44d",
+  "source_commit": "85ca80210a02919705498c585f641d951d159364",
+  "status": "candidate"
+}

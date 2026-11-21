@@ -6,12 +6,226 @@ This is a synchronized documentation renderer, not a second OpenAPI specificatio
 
 import json
 import re
+from collections import Counter
 from pathlib import Path
 
 from scripts.check_api_contract import contract_digest, frozen_contract, validate_documentation, validate_implementation
 
 ROOT = Path(__file__).resolve().parents[2]
 MODELS = {}
+
+
+def frontend_import_graph(root=ROOT):
+    """Resolve local TS imports/re-exports and dynamic imports, without running Next.js.
+
+    Reachability is supporting evidence, not a claim of browser execution. Reviewed
+    call sites in frontend_api_inventory.json distinguish live calls from unused helpers.
+    """
+    sources = {}
+    for directory in ('app', 'components', 'lib'):
+        for path in (root / 'frontend' / directory).rglob('*'):
+            if path.suffix in ('.ts', '.tsx'):
+                text = path.read_text(encoding='utf-8')
+                text = re.sub(r'/\*.*?\*/', '', text, flags=re.DOTALL)
+                text = re.sub(r'(?m)^\s*//[^\n]*', '', text)
+                sources[path.relative_to(root).as_posix()] = text
+    edges = {}
+    for file, text in sources.items():
+        imports = re.findall(r'\bfrom\s+[\'"]([^\'"]+)[\'"]|\bimport\s*\(\s*[\'"]([^\'"]+)[\'"]\s*\)', text)
+        targets = set()
+        for pair in imports:
+            specifier = next(part for part in pair if part)
+            if specifier.startswith('@/'):
+                base = root / 'frontend' / specifier[2:]
+            elif specifier.startswith('.'):
+                base = (root / file).parent / specifier
+            else:
+                continue
+            for candidate in (base, Path(str(base) + '.ts'), Path(str(base) + '.tsx'), base / 'index.ts', base / 'index.tsx'):
+                if candidate.is_file():
+                    targets.add(candidate.resolve().relative_to(root.resolve()).as_posix())
+                    break
+        edges[file] = targets
+    return sources, edges
+
+
+def has_frontend_invocation(source, symbol):
+    """Recognize reviewed direct calls, excluding declarations and quoted examples.
+
+    This deliberately does not claim full TS control-flow analysis. Strip literals
+    and comments before looking for calls; a function/method declaration or type
+    signature cannot establish frontend consumption.
+    """
+    lexical = re.sub(r'''"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|/\*.*?\*/|//[^\n]*''',
+                     lambda match: ' ' * len(match.group()), source, flags=re.DOTALL)
+    pattern = r'(?<![\w$])' + re.escape(symbol) + r'\s*(?:<[^;{}()]*>)?\s*\('
+    for match in re.finditer(pattern, lexical):
+        if re.search(r'\bfunction\s*\*?\s*$', lexical[:match.start()]):
+            continue
+        depth, position = 1, match.end()
+        while position < len(lexical) and depth:
+            if lexical[position] == '(':
+                depth += 1
+            elif lexical[position] == ')':
+                depth -= 1
+            position += 1
+        if depth:
+            continue
+        following = lexical[position:].lstrip()
+        if following.startswith(('{', ':')):
+            continue  # method implementation / TS declaration return annotation
+        return True
+    return False
+
+
+def validate_frontend_inventory(schema, root=ROOT):
+    """Fail on missing/duplicate operations, stale evidence, or unmounted integrations."""
+    inventory = json.loads((root / 'backend/tests/frontend_api_inventory.json').read_text(encoding='utf-8'))
+    rows = inventory['operations']
+    actual = {(method.upper(), path, op['operationId'])
+              for path, methods in schema['paths'].items()
+              for method, op in methods.items() if method in ('get', 'post', 'put', 'patch', 'delete')}
+    recorded = {(row['method'], row['path'], row['operation_id']) for row in rows}
+    assert len(rows) == len(recorded) and recorded == actual, 'Frontend inventory must cover every live operation exactly once'
+    sources, edges = frontend_import_graph(root)
+
+    def reaches(start, target):
+        pending, visited = [start], set()
+        while pending:
+            file = pending.pop()
+            if file == target:
+                return True
+            if file not in visited:
+                visited.add(file)
+                pending.extend(edges.get(file, ()))
+        return False
+
+    pages = [file for file in sources if file.startswith('frontend/app/') and file.endswith('/page.tsx')]
+    for row in rows:
+        assert row['status'] in {'Integrated', 'Mocked', 'Planned', 'No Consumer'}, row['operation_id']
+        assert row['maintainer'] and row['notes'], row['operation_id']
+        assert row['maintainer'] == 'TBD' or row['maintainer_evidence'], 'Named maintainer needs evidence'
+        for reference in row['clients'] + row['consumers']:
+            file, symbol = reference['file'], reference['symbol']
+            # Planned Google references intentionally point to dormant source.
+            source = (root / file).read_text(encoding='utf-8') if row['status'] == 'Planned' else sources.get(file, '')
+            assert symbol in source, f'Stale frontend reference: {file}: {symbol}'
+        active_pages = sorted({page for page in pages for consumer in row['consumers'] if reaches(page, consumer['file'])})
+        if row['status'] == 'Integrated':
+            assert row['clients'] and row['consumers'] and active_pages, f'No reachable application flow: {row["operation_id"]}'
+            for consumer in row['consumers']:
+                symbol = consumer['symbol']
+                if re.fullmatch(r'[A-Za-z_$][\w$]*', symbol):
+                    assert has_frontend_invocation(sources[consumer['file']], symbol), f'Import/declaration alone is not an invocation: {consumer}'
+        row['pages'] = active_pages
+    return rows
+
+
+def source_link(file, symbol=None):
+    label = file.removeprefix('frontend/') + (f' :: {symbol}' if symbol else '')
+    return f'[{label}](../{file})'
+
+
+def render_frontend_inventory(schema):
+    rows = validate_frontend_inventory(schema)
+    counts = Counter(row['status'] for row in rows)
+    out = [f'Bao phủ **{len(rows)} operations**: ' + ', '.join(f'**{counts[status]} {status}**' for status in ('Integrated', 'Mocked', 'Planned', 'No Consumer')) + '.\n',
+           'Integrated xác nhận call site trong luồng ứng dụng đang được mount/import từ page; không đồng nghĩa đã chạy browser hoặc production smoke. Chỉ có helper chưa được gọi là No Consumer. Planned cần ý định rõ ràng; Google Deferred thuộc nhóm này. Mocked nghĩa là luồng thay response API bằng mock; các card mẫu độc lập không biến analytics API thật thành Mocked.\n',
+           'Bảng ghi call site và các page tới được qua local import/re-export/dynamic import. Import graph là bằng chứng tĩnh hỗ trợ, không phân tích điều kiện runtime; ghi chú chỉ rõ call gián tiếp qua interceptor, fallback hoặc component chưa mount. API client dùng origin từ NEXT_PUBLIC_API_URL và tự ghép /api/v1. Cập nhật dữ liệu máy backend/tests/frontend_api_inventory.json và chạy renderer; validator kiểm tra coverage, tham chiếu nguồn và page reachability.\n',
+           '| Method & Path | Operation ID | Frontend Client | Page / Component | Consumption Status | API Maintainer | Notes |\n|---|---|---|---|---|---|---|\n']
+    for row in rows:
+        clients = '<br>'.join(source_link(ref['file'], ref['symbol']) for ref in row['clients']) or '—'
+        consumers = '<br>'.join(source_link(ref['file'], ref['symbol']) for ref in row['consumers']) or '—'
+        if row['pages']:
+            consumers += '<br>Pages: ' + '<br>'.join(source_link(page) for page in row['pages'])
+        out.append(f'| `{row["method"]} {row["path"]}` | `{row["operation_id"]}` | {clients} | {consumers} | {row["status"]} | {row["maintainer"]} | {row["notes"]} |\n')
+    return '\n'.join(out)
+
+
+def render_maintainers():
+    return '''Trách nhiệm dưới đây dựa trên phân công của nhóm trong yêu cầu và issue đang giao trên GitHub; đây là maintainer kỹ thuật, không phải quy trình chữ ký duyệt. Các commit refactor của AI/người tích hợp không tự chứng minh ownership nghiệp vụ. Không suy ra tên thật từ username chưa được xác minh.
+
+| Phạm vi | API Maintainer / phụ trách | Bằng chứng và giới hạn |
+|---|---|---|
+| Hạ tầng root/health, deployment, CI/CD và contract governance | Bình (zaabinh) | Phân công nhóm; [#1 API governance](https://github.com/zaabinh/SE347-UITConnect/issues/1), [#2 Infrastructure](https://github.com/zaabinh/SE347-UITConnect/issues/2). Không mặc định Bình là maintainer mọi API. |
+| Auth; profile-completion và user lookup còn thuộc auth router/service | Thiện (Thien-create) | Phân công Authentication APIs; [#6 Auth/Resend](https://github.com/zaabinh/SE347-UITConnect/issues/6). Google hiện Deferred. |
+| Notification | hmhdang | [#8 Notification](https://github.com/zaabinh/SE347-UITConnect/issues/8); chưa có bằng chứng tên đầy đủ. |
+| File upload / object storage | Đông (QuangDong-2006) | Phân công nhóm; [#5 R2](https://github.com/zaabinh/SE347-UITConnect/issues/5). Bình phối hợp hạ tầng R2; R2 chưa là API đang chạy. |
+| Frontend integration và UI flows | Na (AIVIETNAM-AIO-NguyenNhatAnh) | Phân công nhóm; [#3 Frontend architecture](https://github.com/zaabinh/SE347-UITConnect/issues/3), [#4 API coverage](https://github.com/zaabinh/SE347-UITConnect/issues/4). Đây là frontend responsibility, không gán toàn bộ API backend cho Na. |
+| Tag recommendation tương lai | Chiều (hoaichieu-eng) và Na | Phân công nhóm; [#9 Tag suggestion](https://github.com/zaabinh/SE347-UITConnect/issues/9). Không đủ căn cứ gán toàn bộ feed, tag list/trending hoặc admin tags hiện có. |
+| AI integration tương lai | DuyNgBa | [#7 AI](https://github.com/zaabinh/SE347-UITConnect/issues/7). Không coi đây là bằng chứng sở hữu toàn bộ thuật toán recommendation đang chạy. |
+| Users/profile thông thường, posts, comments, moderation/admin, feed, recommendations và tags hiện có | TBD | Chưa thấy phân công đủ chính xác cho các operation này; nhóm cần xác định maintainer, không tự điền theo tác giả commit migration. |
+
+GitHub PR inventory trả danh sách rỗng khi rà soát; không có PR/review hoặc tag chứng minh revision đã được duyệt làm baseline. Bằng chứng issue thể hiện assignment tại thời điểm kiểm tra, không chứng minh endpoint đã được triển khai hoặc đã release.
+'''
+
+
+def render_compatibility_policy():
+    return '''Consistency và backward compatibility là hai kiểm tra độc lập: implementation và tài liệu có thể cùng đổi mà vẫn làm client cũ hỏng. Giữ check hiện có `python -m scripts.check_api_contract --check-docs`; bổ sung baseline OpenAPI thực tế, JSON sắp xếp ổn định và công cụ oasdiff 1.39.0 được pin cùng SHA-256 archive theo platform.
+
+**Trạng thái baseline: candidate, chưa được duyệt.** Không tìm thấy revision có bằng chứng phê duyệt. Candidate tại `docs/openapi/candidate-v1.json`, metadata tại `docs/openapi/candidate-v1.metadata.json`, nguồn commit `85ca80210a02919705498c585f641d951d159364`. Không lấy nhánh đang sửa làm approved baseline. Candidate chỉ chụp API đã có trước thay đổi governance lần này; tạo từ archive của đúng source commit bằng FastAPI, không phải OpenAPI viết tay.
+
+Tái tạo từ repository/backend với đúng dependency lock của source:
+
+```sh
+python -m scripts.api_baseline --source 85ca80210a02919705498c585f641d951d159364
+python -m scripts.api_baseline --verify
+python -m scripts.check_api_contract --check-docs --export "${TMPDIR:-/tmp}/uitconnect-openapi.json"
+python -m scripts.install_oasdiff
+python -m scripts.check_api_compatibility --candidate ../docs/openapi/candidate-v1.json --current "${TMPDIR:-/tmp}/uitconnect-openapi.json"
+```
+
+So candidate là kiểm tra chuẩn bị, không phải xác nhận tương thích với bản production đã được duyệt. Công cụ `oasdiff breaking OLD NEW --fail-on WARN` kiểm tra đúng hướng: request client cũ phải còn được backend chấp nhận; response mới phải còn dùng được cho client cũ. Các thay đổi tăng minLength, thêm required request field, xóa operation/response field, đổi kiểu và security là các trường hợp regression cần giữ. Với enum phải xét chiều: **thu hẹp request enum** loại giá trị client cũ đang gửi; **mở rộng response enum** có thể trả giá trị client cũ chưa xử lý — đều có thể breaking. Mở rộng request enum và thu hẹp response enum thường không breaking theo hướng schema này; không đánh đồng mọi enum removal. Thêm capability tương thích có thể qua kiểm tra, nhưng frozen inventory và tài liệu vẫn phải được cập nhật có chủ ý.
+
+**Bootstrap riêng:** nhóm xác nhận snapshot ban đầu trong thay đổi chỉ dành cho baseline, sau khi tái tạo/hash đúng source. Sao candidate và metadata sang `docs/openapi/approved-v1.json` và `approved-v1.metadata.json`, chuyển metadata sang approved với tham chiếu xác nhận có thể kiểm chứng; không trộn thay đổi API breaking vào bước này. Đưa snapshot vào revision được bảo vệ rồi cấu hình repository variable `API_CONTRACT_BASELINE_COMMIT` bằng full 40-character commit SHA. Đây là thiết lập một mốc kỹ thuật đáng tin cậy, không thêm quy trình bắt buộc chữ ký owner/backend/frontend.
+
+CI phải fetch revision bên ngoài PR đó và đọc baseline bằng git show từ SHA đã cấu hình; không đọc trusted baseline chỉ từ file PR vừa sửa. Chưa cấu hình trusted SHA hoặc chưa có approved snapshot → release gate thất bại rõ lý do, không tự chuyển candidate thành approved. GitHub read-only xác nhận `develop` có protected=true nhưng repository Actions variables hiện rỗng, nên `API_CONTRACT_BASELINE_COMMIT` chưa được cấu hình. Trạng thái hiện tại vì thế còn **Pending baseline bootstrap**; chưa khẳng định workflow cloud đã chạy thành công.
+
+Đã chạy cục bộ 20 compatibility regression tests với oasdiff thật: tăng title minLength 5 → 6 bị từ chối dù regenerate tài liệu/fingerprint, thay đổi additive tương thích qua kiểm tra. So current OpenAPI với candidate từ source commit không phát hiện breaking change. Đây không phải xác nhận baseline đã được duyệt. Workflow YAML đã parse; chưa có GitHub Actions run chứng minh release gate trên cloud.
+
+Kiểm chứng cuối đợt API contract finalization sau tích hợp trên nhánh chính: full backend suite **386 passed, 40 warnings trong 339.69s**, exit 0; compatibility suite **20 passed**, inventory regression suite **5 passed**. Frontend contract tests **14/14 passed trong 19.16s**; `npx tsc --noEmit` exit 0. Đây là bằng chứng tự động cục bộ; không thay trạng thái Pending của staging/production/browser/rollback hoặc biến candidate thành approved. Các kết quả theo ngày ở mục 16 là lịch sử kiểm chứng, không bị thay thế bằng kết quả này.
+
+Sau khi có baseline, thay đổi API chính thức đi qua PR với lý do, consumer ảnh hưởng, migration mapping và checklist rollout/rollback, cùng generated OpenAPI, inventory và tài liệu cập nhật. CI giữ cả consistency và compatibility; baseline không được thay chỉ để làm PR breaking đạt. Nếu breaking change có chủ đích, ghi ảnh hưởng và phương án rollout/version riêng trước khi cập nhật mốc tin cậy. Repository/branch protection là cấu hình ngoài source cần kiểm tra riêng; không tuyên bố đã bật chỉ vì có workflow.
+'''
+
+
+def render_deployment_checklist():
+    checks = [
+        ('A — Local origin/base path', 'Bình + Na', 'Pending', 'frontend/lib/axios.ts; docker-compose.yml', 'NEXT_PUBLIC_API_URL là origin http://localhost:8000, client ghép /api/v1. Cần chạy local browser thật; production build bake biến NEXT_PUBLIC vào bundle.'),
+        ('A — Staging origin', 'Bình + Na', 'Pending', 'Chưa có staging URL/runtime evidence trong lượt này', 'Xác nhận origin, frontend build environment và backend PUBLIC_API_URL/FRONTEND_URL tại staging.'),
+        ('A — Production origin', 'Bình + Na', 'Pending', 'render.yaml: envVars sync:false; frontend/lib/axios.ts', 'Đối chiếu deployed frontend build với backend origin thực tế; không dùng URL localhost hoặc ghép /api/v1 hai lần.'),
+        ('A — CORS theo environment', 'Bình', 'Pending', 'app/core/config.py; app/factory.py; render.yaml', 'Kiểm tra OPTIONS và request thật từ local/staging/production origin; expose X-Request-ID/Location. Không coi config tồn tại là đã verify live.'),
+        ('A — HTTPS/reverse proxy', 'Bình', 'Pending', 'render.yaml; app/core/config.py', 'Xác nhận HTTPS public, header proxy, Location/upload URL và không mixed content trên môi trường thật.'),
+        ('B — Register/login', 'Thiện + Na', 'Pending', 'auth router; LoginForm/RegisterForm; frontend/tests/api-v1.test.cjs', 'Chạy account thử, kiểm tra profile-completion redirect, lỗi duplicate/password/banned và không lộ secret.'),
+        ('B — Access/refresh/logout', 'Thiện + Na', 'Pending', 'frontend/lib/axios.ts; auth application', 'Kiểm tra hết hạn access, refresh retry một lần, session hết hạn, logout xóa storage; account admin thử riêng.'),
+        ('B — Session restore/errors/redirects', 'Thiện + Na', 'Pending', 'frontend/lib/useAuthGuard.ts; app/complete-profile/page.tsx', 'Reload protected page, user chưa hoàn thành profile, 401/403 ProblemDetails, frontend redirect và profile-completion v1.'),
+        ('B — Google OAuth/callback v1', 'Thiện', 'N/A', 'Auth routes còn đăng ký; RegisterForm nút Google đang comment', 'N/A — Future Phase / Deferred. Không triển khai hoặc thêm callback; chỉ ghi actual legacy implementation ở mục 4; không chặn release vì chưa tích hợp Google.'),
+        ('C — Xác định frontend đã deploy', 'Bình + Na', 'Pending', 'Mục 17 legacy mapping; chưa có previous deployed frontend artifact', 'API v1 không giữ alias legacy. Nếu frontend production còn gọi route cũ, rollout backend trước sẽ breaking: cần kế hoạch cutover có kiểm soát cùng đợt release, không giả định tương thích.'),
+        ('C — DB → backend → smoke → frontend → E2E', 'Bình + Na', 'Pending', 'docker-compose.yml db-init dependency; render.yaml không có preDeployCommand', 'Chạy một migration job riêng, chờ thành công, deploy backend python -m app, smoke backend, deploy frontend đã build đúng origin, rồi E2E. Render phải thực thi migration riêng trước deploy; config hiện không tự đảm bảo bước đó.'),
+        ('C — Backend phục vụ frontend trước rollout', 'Bình + Na + API maintainer TBD', 'Pending', 'Trusted baseline bootstrap còn thiếu; artifacts chưa được đối chiếu', 'Chạy smoke với frontend artifact trước và mới; chỉ tiếp tục nếu các request thực tế còn hợp lệ. Dừng rollout nếu thiếu baseline/cutover plan cho legacy routes.'),
+        ('D — Migration job độc lập/single runner', 'Bình', 'Pending', 'backend/scripts/migrate.py; docker-compose.yml db-init', 'Không migrate trong startup. Một job chịu trách nhiệm migration, không để từng replica tự chạy; cần xác nhận runtime orchestration Render và khóa tránh hai pipeline triển khai đồng thời.'),
+        ('D — Revision/history và SQL connectivity', 'Bình', 'Pending', 'backend/alembic; scripts.migrate status; scripts.db_schema', 'Trên DB đích: kiểm tra current/head và inventory thực tế. /health chỉ liveness, không thay SQL SELECT 1 hoặc query API cần DB.'),
+        ('D — Data preservation/expand-contract', 'Bình + API maintainer TBD', 'Pending', 'backend/scripts/migration_policy.py; backend/alembic/versions', 'Expand trước, backfill có kiểm chứng, deploy bản tương thích cả schema, chỉ contract khi code cũ không còn chạy; kiểm tra dữ liệu trên DB đích trước/sau.'),
+        ('D — Migration failure handling', 'Bình', 'Pending', 'scripts.migrate upgrade; migration policy', 'Migration lỗi: dừng backend/frontend deployment, giữ app cũ nếu schema còn tương thích; xác định revision/catalog thực tế trước retry. Không stamp hoặc down mù để bỏ qua lỗi.'),
+        ('E — HTTP integration tự động cục bộ', 'Bình', 'Passed', 'pytest -q tests/test_deployment_smoke.py: 8 passed, 3 warnings, 45.13s; isolated SQLite', 'Đã chạy HTTP register/login/completion, admin tag, pending post → moderation → feed tag, like, refresh/logout và smoke đọc; kiểm tra transport 302/307 không theo redirect hoặc forward bearer, từ chối origin sai. Đây là test app/transport cục bộ, không phải browser hoặc deployed SQL Server.'),
+        ('E — Health và database readiness', 'Bình', 'Pending', 'GET /health; scripts.migrate status; DB-backed /api/v1/tags và /api/v1/feed', 'Chạy smoke trên local/staging/production sau deploy; health thành công chưa chứng minh DB truy cập được.'),
+        ('E — Auth/current user', 'Thiện + Na', 'Pending', 'POST /api/v1/auth/login; GET /api/v1/auth/me; GET /api/v1/users/me', 'Dùng test account/profile hoàn thành; kiểm tra response shape và token handling. Không ghi token/password vào logs hoặc artifacts.'),
+        ('E — Create post/feed/tags/interactions', 'Na + API maintainer TBD', 'Pending', 'posts/feed/tags contract; smoke command của repository', 'Tạo bài có title >=5, trạng thái user thường pending; admin/moderation trước khi kỳ vọng bài ở feed. Like/bookmark PUT/DELETE, comments và report dùng resource thử riêng; không suy ra pending post phải xuất hiện public.'),
+        ('E — Browser E2E', 'Na', 'Pending', 'Chưa chạy browser trong checklist này', 'Login → complete profile nếu cần → feed/tag filter → post/detail/comment/like/bookmark → notifications; dashboard mẫu phải có nhãn, không dùng làm bằng chứng analytics.'),
+        ('F — Previous backend artifact', 'Bình', 'Pending', 'Chưa có release/image digest và redeploy evidence', 'Lưu previous commit/image digest cùng env; thử redeploy vào environment thử nghiệm trước khi coi rollback sẵn sàng.'),
+        ('F — Previous frontend artifact', 'Na + Bình', 'Pending', 'Chưa có previous build ID và restore evidence', 'Giữ build tương ứng NEXT_PUBLIC_API_URL cũ; phục hồi origin/env bằng rebuild nếu cần, không chỉ đổi runtime env của bundle đã bake.'),
+        ('F — Schema/config rollback safety', 'Bình + API maintainer TBD', 'Pending', 'migration policy expand/contract; env configuration', 'Ưu tiên rollback app trên schema expanded tương thích. Sau destructive/data migration cần recovery riêng; không mặc định alembic downgrade an toàn. Lưu previous env references, không lưu secret trong tài liệu.'),
+        ('F — Recovery và post-rollback smoke', 'Bình + Na', 'Pending', 'Quy trình ngay dưới bảng; cần rehearsal evidence', 'Chỉ xác nhận Passed khi đã thử restore artifact và kiểm tra health, SQL, login/current user, feed/tags và chức năng trọng yếu.'),
+    ]
+    out = ['Checklist này tách bằng chứng mã nguồn khỏi xác minh môi trường. **Pending** không đồng nghĩa Failed; không đánh Passed chỉ vì có config hoặc tests cục bộ. Mỗi environment chưa được kiểm tra giữ Pending. Các test tự động và smoke thực sự đã chạy phải ghi output/CI run hoặc artifact riêng vào Evidence khi cập nhật.\n',
+           '| Check | Responsible | Status | Evidence | Notes |\n|---|---|---|---|---|\n']
+    for row in checks:
+        out.append('| ' + ' | '.join(row) + ' |\n')
+    counts = Counter(row[2] for row in checks)
+    out.append('\nTrạng thái deployment checklist: ' + ', '.join(f'**{counts[status]} {status}**' for status in ('Passed', 'Failed', 'Pending', 'N/A')) + '. Đây là trạng thái readiness live, không phải kết quả unit tests.\n')
+    out.append('**Smoke triển khai chỉ đọc:** từ backend chạy `python -m scripts.deployment_smoke --origin https://API_ORIGIN` với token test account đã hoàn thành profile trong biến môi trường `SMOKE_ACCESS_TOKEN` (không đưa token lên command line/log). Kiểm tra GET health/auth-me/users-me/tags/feed; không theo redirect để tránh chuyển bearer sang host khác. Chưa chạy với target live trong đợt này. Tests HTTP cục bộ kiểm tra luồng ghi trên DB cô lập; thao tác ghi staging/production cần test account và dữ liệu thử có cleanup riêng.\n')
+    out.append('**Recovery có kiểm soát:** dừng rollout/traffic write nếu cần → ghi nhận app version, Alembic revision và catalog thực tế → xác định schema còn chạy được với app trước hay cần forward fix/recovery dữ liệu → restore backend artifact và env tương ứng → smoke health + SQL + auth/current user + feed/tags → restore frontend build đúng API origin → browser smoke → theo dõi log/request_id. Nếu migration đã contract hoặc biến đổi mất dữ liệu, dừng app rollback tự động và thực hiện kế hoạch recovery đã được nhóm xác nhận; không chạy downgrade giả định. Giữ việc khôi phục DB dữ liệu riêng khỏi release application.\n')
+    return '\n'.join(out)
 
 # Explicit behavioral notes were reviewed against routers, application services and policies.
 # name, module, behavior, operation-specific failures (shared auth/validation errors are added below).
@@ -461,11 +675,23 @@ def render(schema):
         10: 'Hợp đồng API quản trị và kiểm duyệt (Admin & Moderation API Contracts)', 11: 'Hợp đồng API media (Media API Contracts)', 12: 'DTO dùng chung và kiểu dữ liệu (Shared DTOs and Data Types)',
         13: 'Mã lỗi (Error Codes)', 14: 'Ma trận xác thực và phân quyền (Authentication and Authorization Matrix)',
         15: 'Chính sách tương thích và phiên bản API (API Compatibility and Versioning Policy)', 16: 'Kiểm chứng hợp đồng API (API Contract Verification)', 17: 'Ánh xạ endpoint legacy sang v1 (Legacy-to-v1 Endpoint Mapping)',
+        18: 'Inventory frontend sử dụng API (Frontend API Consumption Inventory)',
+        19: 'Phân công bảo trì API (API Maintainers)',
+        20: 'Baseline OpenAPI và kiểm soát thay đổi tương thích',
+        21: 'Checklist tương thích triển khai (Deployment Compatibility Checklist)',
     }
     out = ['# UITConnect V2 — REST API Contract v1\n', f'<!-- OPENAPI_CONTRACT_SHA256: {contract_digest(schema)} -->\n',
            '> Tài liệu REST API có thẩm quyền duy nhất, viết theo router đã đăng ký, DTO và application/domain service. OpenAPI 3.1 được sinh từ ứng dụng tại `/openapi.json`; không có bản OpenAPI viết tay cạnh tranh. Giá trị ID/token trong ví dụ chỉ minh họa, không phải credential dùng được.\n']
     for number, title in headings.items():
         out.append(f'## {number}. {title}\n')
+        if number == 18:
+            out.append(render_frontend_inventory(schema))
+        if number == 19:
+            out.append(render_maintainers())
+        if number == 20:
+            out.append(render_compatibility_policy())
+        if number == 21:
+            out.append(render_deployment_checklist())
         if number == 1:
             out.append('UITConnect V2 dùng Modular Monolith: FastAPI/Pydantic v2 → application service → domain/repository → SQLAlchemy/SQL Server, Unit of Work và Transactional Outbox. Central router chỉ ghép module; router không sở hữu commit. Unified entrypoint vẫn là `python -m app`.\n\nBase URL local: `http://localhost:8000`; API nghiệp vụ: `{BASE_URL}/api/v1`. Frontend dùng cấu hình API origin tương ứng. Có **60 endpoint nghiệp vụ**, **62 REST operations** nếu tính `GET /` và `GET /health`. Swagger `/docs`, ReDoc `/redoc`, OpenAPI `/openapi.json` và static `/uploads/{filename}` là hạ tầng do framework phục vụ, không được tính thành operation REST trong bảng OpenAPI. Không có alias endpoint cũ hoặc route business ngoài `/api/v1`.\n\nRequest/response thường là `application/json`; upload dùng `multipart/form-data`; lỗi là `application/problem+json`; redirect OAuth là 307; 204 không có body. Bearer access JWT được gửi qua `Authorization`; refresh token trong JSON chỉ dùng cho refresh/logout. Không đổi kiến trúc JWT/session/OAuth trong đợt chuẩn hóa này.\n\nHai endpoint hạ tầng cũng có contract dưới đây.\n')
         if number == 2:
@@ -527,7 +753,7 @@ def render(schema):
         if number == 15:
             out.append('URL-based major version `/api/v1`. Thay field đang có, type/nullable/required, method/path, semantics/quyền, success status hoặc loại bỏ operation là breaking change cần cập nhật backend, frontend, frozen map/tests và tài liệu cùng release; khi cần phục vụ external consumers lâu dài phải lên kế hoạch major version thực sự. Thêm field response optional hoặc capability độc lập có thể tương thích nếu consumer bỏ qua field lạ; không tự tạo v2 chỉ vì đổi tên mỹ thuật. Không có compatibility alias được giữ lại trong migration này và không có external consumer nào trong repository cần alias.\n\nĐợt migration này là breaking change có phối hợp: namespace /api/v1; PUT update cũ → PATCH; toggle like/bookmark → PUT/DELETE state; follow POST → PUT; notification read POST → PUT; approve/reject gộp PUT moderation; private bookmarks thành users/me; feed có page/page_size/items/meta; public author loại bỏ dữ liệu riêng tư; lỗi ProblemDetails thay detail-only; create=201, queued reset=202, delete/logout=204; GET post không còn tự ghi view, client gọi POST views riêng. Chi tiết đầy đủ ở mapping mục 17. Không đổi JWT rotation/session model hoặc thuật toán recommendation.\n\n**OAuth deployment:** cập nhật Google provider và GOOGLE_REDIRECT_URI trước khi chuyển traffic tới callback v1; callback cũ không còn được đăng ký. Frontend/auth API origin và mọi consumer phải deploy tương thích cùng đợt. Không có DB migration schema mới cho việc đổi contract. Alembic vẫn chạy thành bước riêng; startup không chạy DDL/create_all. Docker Compose, Render và GitHub Actions giữ entrypoint `python -m app`, quy trình migrations không được nhập vào app startup.\n\nCode helper/DTO alias nội bộ không phải HTTP compatibility route. File tag_router cũ không từng được central factory đăng ký nên không phải endpoint public bị loại; danh mục tag hoạt động vẫn được bảo toàn qua tags_list và admin CRUD. Không có independent search/edit-delete-comment/R2 giả.\n')
         if number == 16:
-            out.append('Nguồn sự thật: `app.factory.create_app().openapi()` và route đăng ký thực tế; `/openapi.json` dùng cùng schema. Không mở DB để export OpenAPI. Frozen migration inventory: `backend/tests/api_v1_contract.json` (58 legacy business → 60 v1 business); hạ tầng thêm 2, tổng 62. FastAPI/Pydantic dùng dependencies đã pin của backend; tránh export bằng môi trường Python khác version.\n\nTừ thư mục backend, dùng interpreter `.venv/Scripts/python.exe` trên Windows (hoặc `.venv/bin/python` trên POSIX) tương ứng cài requirements:\n\n```powershell\npython -m scripts.check_api_contract --export .tmp/openapi-v1.json\npython -m scripts.render_api_contract\npython -m scripts.check_api_contract --check-docs\npython -m pytest -q\n```\n\nTừ frontend:\n\n```powershell\nnpm run test:contract\nnpx tsc --noEmit\nnpm run lint\nnpm run build\n```\n\ncheck_api_contract kiểm tra OpenAPI 3.1, ref DTO, không trùng route/operation_id, namespace/mapping, success status, request/response DTO, auth, problem content type và field public. --check-docs kiểm tra coverage tất cả operation_id/method-path/schema/field cùng SHA-256 trên contract projection (parameters, body, response, security, components). Marker ở đầu tài liệu phải khớp; không sửa marker thủ công để bỏ qua drift. Renderer dùng schema trực tiếp cho bảng/constraints và behavior đã review trong cùng script, tự kiểm tra inventory/field coverage và ví dụ bằng Pydantic trước khi ghi tài liệu. Khi thay business rule cần review phần ghi chú behavior nữa; fingerprint không chứng minh tính đúng của câu văn. Tài liệu này là output duy nhất, không tạo thêm API reference thủ công.\n\nKiểm tra tích hợp cần SQL Server/migration/provider/email thật phải chạy trong môi trường có hạ tầng đó; unit/contract tests không tự chứng minh provider redirect registration, email delivery, live R2 (chưa triển khai) hoặc production persistence. Lệnh và kết quả thực tế của release phải được báo cáo từ lần chạy thật, không suy ra chỉ từ tài liệu.\n')
+            out.append('Nguồn sự thật: `app.factory.create_app().openapi()` và route đăng ký thực tế; `/openapi.json` dùng cùng schema. Không mở DB để export OpenAPI. Frozen migration inventory: `backend/tests/api_v1_contract.json` (58 legacy business → 60 v1 business); hạ tầng thêm 2, tổng 62. FastAPI/Pydantic dùng dependencies đã pin của backend; tránh export bằng môi trường Python khác version.\n\nTừ thư mục backend, dùng interpreter `.venv/Scripts/python.exe` trên Windows (hoặc `.venv/bin/python` trên POSIX) tương ứng cài requirements:\n\n```powershell\npython -m scripts.check_api_contract --export "$env:TEMP\\uitconnect-openapi-v1.json"\npython -m scripts.render_api_contract\npython -m scripts.check_api_contract --check-docs\npython -m pytest -q\n```\n\nTừ frontend:\n\n```powershell\nnpm run test:contract\nnpx tsc --noEmit\nnpm run lint\nnpm run build\n```\n\ncheck_api_contract kiểm tra OpenAPI 3.1, ref DTO, không trùng route/operation_id, namespace/mapping, success status, request/response DTO, auth, problem content type và field public. --check-docs kiểm tra coverage tất cả operation_id/method-path/schema/field cùng SHA-256 trên contract projection (parameters, body, response, security, components). Marker ở đầu tài liệu phải khớp; không sửa marker thủ công để bỏ qua drift. Renderer dùng schema trực tiếp cho bảng/constraints và behavior đã review trong cùng script, tự kiểm tra inventory/field coverage và ví dụ bằng Pydantic trước khi ghi tài liệu. Khi thay business rule cần review phần ghi chú behavior nữa; fingerprint không chứng minh tính đúng của câu văn. Tài liệu này là output duy nhất, không tạo thêm API reference thủ công.\n\nKiểm tra tích hợp cần SQL Server/migration/provider/email thật phải chạy trong môi trường có hạ tầng đó; unit/contract tests không tự chứng minh provider redirect registration, email delivery, live R2 (chưa triển khai) hoặc production persistence. Lệnh và kết quả thực tế của release phải được báo cáo từ lần chạy thật, không suy ra chỉ từ tài liệu.\n')
             out.append('**Kết quả kiểm chứng đợt chuẩn hóa (19/11/2026):** bộ backend kết hợp chạy bằng môi trường pin đạt **354 passed, 39 warnings** (195.95 giây), gồm kiểm tra contract/nghiệp vụ và bộ HTTP security độc lập. Frontend đạt **13 contract tests**, TypeScript `tsc --noEmit`, lint (4 cảnh báo có từ trước) và Next production build **18 pages**. SQL Server thật đã kiểm tra baseline/adoption, expand-backfill-contract, Outbox, HTTP/private DTO, GET chỉ đọc, share atomic, concurrent likes/reports và migration/app locks; database thử nghiệm được xóa sau kiểm tra. Docker production image đã build và chạy entrypoint mặc định `python -m app`, HTTP health/OpenAPI 62 operations đạt; `docker compose config --quiet` đạt. Schema Linux container và môi trường pin local có cùng fingerprint. Đây là kết quả của đợt chạy cụ thể, không phải bảo đảm mọi môi trường. Browser E2E, cloud deployment, Google provider registration thực tế và email delivery thực tế chưa được kiểm tra; R2 vẫn chưa triển khai.\n')
         if number == 17:
             legacy = {}
@@ -606,7 +832,7 @@ def main():
     validate_examples(schema)
     document = ROOT / 'docs/API_CONTRACT.md'
     rendered = render(schema)
-    assert len(re.findall(r'^## \d+\.', rendered, re.MULTILINE)) == 17
+    assert len(re.findall(r'^## \d+\.', rendered, re.MULTILINE)) == 21
     assert len(re.findall(r'^### `(?:GET|POST|PUT|PATCH|DELETE) /', rendered, re.MULTILINE)) == 62
     assert not re.search(r'(?m)^\|[^\n]*\n\n\|', rendered), 'Broken Markdown table'
     for sample in re.findall(r'```json\n(.*?)\n```', rendered, re.DOTALL):

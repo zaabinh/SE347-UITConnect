@@ -119,6 +119,8 @@ def validate_implementation(app):
 
 
 def validate_documentation(schema, document=None):
+    from scripts.render_api_contract import render_frontend_inventory, validate_frontend_inventory
+
     path = document or REPOSITORY / 'docs/API_CONTRACT.md'
     text = Path(path).read_text(encoding='utf-8')
     marker = re.search(r'<!-- OPENAPI_CONTRACT_SHA256: ([0-9a-f]{64}) -->', text)
@@ -133,6 +135,10 @@ def validate_documentation(schema, document=None):
         assert f'`{name}`' in text, f'Undocumented schema: {name}'
         for field in definition.get('properties', {}):
             assert f'`{field}`' in text, f'Undocumented field: {name}.{field}'
+    validate_frontend_inventory(schema)
+    for line in render_frontend_inventory(schema).splitlines():
+        if line.startswith('|'):
+            assert line in text, 'Frontend consumer inventory is stale'
 
 
 def main():

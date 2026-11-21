@@ -1,0 +1,2 @@
+# OpenAPI snapshot checksums must remain identical on Windows and Linux.
+docs/openapi/*.json text eol=lf
