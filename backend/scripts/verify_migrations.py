@@ -6,6 +6,7 @@ from tempfile import TemporaryDirectory
 from uuid import uuid4
 
 from alembic import command
+from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
 
@@ -48,6 +49,7 @@ def main() -> None:
             created = True
         test_engine = create_engine(configured_engine.url.set(database=name), hide_parameters=True)
         config = alembic_config()
+        current_head = ScriptDirectory.from_config(config).get_current_head()
         apply(test_engine, config, command.upgrade, BASELINE_REVISION)
         with test_engine.connect() as connection:
             verify_baseline(connection)
@@ -109,7 +111,7 @@ def main() -> None:
 import sqlalchemy as sa
 from scripts.migration_policy import require_phase
 revision = 'verification_expand'
-down_revision = '20261119_02'
+down_revision = '__CURRENT_HEAD__'
 branch_labels = depends_on = None
 migration_phase = 'expand'
 def upgrade():
@@ -118,7 +120,7 @@ def upgrade():
 def downgrade():
     require_phase('contract')
     op.drop_column('users', 'migration_probe', schema='dbo')
-''', encoding='utf-8')
+'''.replace('__CURRENT_HEAD__', current_head), encoding='utf-8')
             (revisions / 'verification_contract.py').write_text('''from alembic import op
 from scripts.migration_policy import require_phase
 revision = 'verification_contract'

@@ -1,6 +1,6 @@
 # UITConnect V2 Media R2 Design
 
-> Bản nháp thiết kế MD-01 cho bước A, chờ Bình và API-01 review. API R2, DTO và chính sách dưới đây là đề xuất, chưa phải chức năng đã triển khai hoặc contract REST đã công bố.
+> Kiến trúc được Bình duyệt có điều kiện ngày 22/11/2026: [Approved with Changes](https://github.com/zaabinh/SE347-UITConnect/issues/5#issuecomment-7072868351). Đã bắt đầu adapter, verification, read policy và metadata; HTTP API R2 chưa tích hợp. Schema/migration và DTO/retry cần chốt với Bình/API-01 trước khi tích hợp frontend; chưa production-ready.
 
 | Nội dung | Giá trị |
 | --- | --- |
@@ -8,9 +8,9 @@
 | Implementation owner | Đông, `@QuangDong-2006` |
 | Cloudflare và architecture reviewer | Bình, `@zaabinh` |
 | Nhánh làm việc | `feature/cloudflare-r2-media-upload` |
-| Baseline ứng dụng trên nhánh thiết kế | `6b638b5`, tạo từ `develop` |
+| Baseline ứng dụng hiện tại | Đã merge `develop` tại `8105ff6`; Alembic head kế thừa `20261119_02`. REST v1 của API-01 chưa merge |
 | Chuẩn API tham chiếu | [API-01 tại a28fd49](https://github.com/zaabinh/SE347-UITConnect/blob/a28fd49147f4012d03438c1fa33262261425cff1/docs/API_CONTRACT.md) |
-| Cập nhật | 21/11/2026; bản thiết kế chờ review, implementation chưa bắt đầu |
+| Cập nhật | 22/11/2026; đã áp dụng review, bắt đầu implementation nền tảng và mocked tests |
 
 Đây là tài liệu Markdown duy nhất trên nhánh nhiệm vụ MD-01. Người review bắt đầu ở phần tổng quan, xem sơ đồ lifecycle và bảng endpoint, sau đó đọc contract/DTO và ghi quyết định ở cuối tài liệu.
 
@@ -41,17 +41,17 @@ UITConnect sẽ lưu ảnh lâu dài trên R2 và metadata trong SQL Server. Bro
 
 ### 1.1. Hiện trạng và điểm tích hợp
 
-Bảng dưới mô tả baseline `6b638b5` trên nhánh R2. Trên nhánh API-01 tại `a28fd49`, backend đã chuyển sang `app/modules/media`, frontend có `uploadImage(file)`, và `POST /api/v1/media/images` đã yêu cầu active_user, kiểm tra MIME/signature cùng giới hạn file 5 MiB. Endpoint đó vẫn lưu filesystem, chưa có upload intent, metadata ownership hoặc lifecycle private R2. Xem [Media API hiện có](https://github.com/zaabinh/SE347-UITConnect/blob/a28fd49147f4012d03438c1fa33262261425cff1/backend/app/modules/media/application.py).
+Bảng dưới mô tả luồng ứng dụng sau khi merge develop `8105ff6` trên nhánh R2. Trên nhánh API-01 tại `a28fd49`, backend đã chuyển sang `app/modules/media`, frontend có `uploadImage(file)`, và `POST /api/v1/media/images` đã yêu cầu active_user, kiểm tra MIME/signature cùng giới hạn file 5 MiB. Endpoint đó vẫn lưu filesystem, chưa có upload intent, metadata ownership hoặc lifecycle private R2. Xem [Media API hiện có](https://github.com/zaabinh/SE347-UITConnect/blob/a28fd49147f4012d03438c1fa33262261425cff1/backend/app/modules/media/application.py).
 
 | Vị trí | Hiện trạng | Thay đổi cần thiết |
 | --- | --- | --- |
 | [PostEditor.tsx](../frontend/components/post/PostEditor.tsx) | Dùng `FileReader.readAsDataURL` khi chọn ảnh | Giữ preview trên máy, thực hiện upload R2 trước khi gửi bài |
 | [Trang tạo bài](../frontend/app/create/page.tsx) và [trang sửa bài](../frontend/app/edit/%5Bid%5D/page.tsx) | Truyền ảnh qua `cover_image` | Gửi định danh media đã được xác minh |
-| [Upload router](../backend/routers/upload.py) | `POST /upload/image` ghi file local, chưa kiểm tra đăng nhập | Thay bằng Media API có xác thực và kiểm tra ownership |
-| [Backend entrypoint](../backend/main.py) | Mount thư mục local thành `/uploads` | Loại bỏ phụ thuộc này cho media persistent trên production sau khi chuyển dữ liệu |
-| [Post schema](../backend/schemas/post_schema.py), [post router](../backend/routers/post.py) và [Post model](../backend/models/post.py) | Nhận/lưu `cover_image` dạng chuỗi | Thêm liên kết media và validate ở backend |
-| [AvatarPicker](../frontend/components/ui/AvatarPicker.tsx) và [profile API](../backend/routers/user.py) | Avatar cũng có thể dùng Data URL; profile nhận `avatar_url` | Tích hợp lại Media API ở giai đoạn sau |
-| [Database upgrade script](../backend/scripts/upgrade_db.py) | Baseline nhánh R2 còn cơ chế chạy SQL upgrade thủ công | Khi tích hợp API-01, kế thừa Alembic đã có và thêm revision Media |
+| [Upload router](../backend/app/modules/posts/upload_router.py) | `POST /upload/image` ghi file local, chưa kiểm tra đăng nhập | Thay bằng Media API có xác thực và kiểm tra ownership |
+| [Backend entrypoint](../backend/app/main.py) | Mount thư mục local thành `/uploads` | Loại bỏ phụ thuộc này cho media persistent trên production sau khi chuyển dữ liệu |
+| [Post schema](../backend/app/modules/posts/schemas.py), [post router](../backend/app/modules/posts/router.py) và [Post model](../backend/app/modules/posts/models.py) | Nhận/lưu `cover_image` dạng chuỗi | Thêm liên kết media và validate ở backend |
+| [AvatarPicker](../frontend/components/ui/AvatarPicker.tsx) và [profile API](../backend/app/modules/users/router.py) | Avatar cũng có thể dùng Data URL; profile nhận `avatar_url` | Tích hợp lại Media API ở giai đoạn sau |
+| [Database upgrade script](../backend/scripts/upgrade_db.py) | Baseline develop đã có Alembic và migration policy | Đông viết revision Media nối tiếp head hiện tại, Bình review và triển khai |
 
 Luồng hiện tại: người dùng chọn ảnh → frontend tạo Data URL → gửi trong JSON tạo bài → backend lưu chuỗi vào `posts.cover_image`. API upload local là một luồng khác, chưa có bước cấp phép và xác minh object như yêu cầu MD-01.
 
@@ -61,11 +61,11 @@ Phạm vi triển khai đầu tiên là ảnh bìa bài viết. Thiết kế đ�
 
 | Thành viên | Trách nhiệm |
 | --- | --- |
-| Đông | Metadata, Media API, adapter, verification, ownership, migration phối hợp DB, tests và tài liệu |
-| Bình | Bucket, credentials, CORS, domain, review security và cấu hình staging/production |
+| Đông | Implement API/adapter/verification/metadata/cleanup, thiết kế schema và viết Alembic migrations, backfill legacy, tests và phối hợp Na |
+| Bình | Cấu hình R2/CORS/domain/logo; review API/DB/migration/security/concurrency; triển khai migrations và cleanup job staging/production |
 | Na | Phối hợp Đông tích hợp UI chọn ảnh, tiến trình upload, lỗi và thay Data URL persistent |
 | API-01 | Thống nhất route, DTO, mã lỗi và thay đổi contract bài viết |
-| Người phụ trách database | Review FK/index, migration nối tiếp baseline API-01, upgrade và chuyển dữ liệu cũ |
+| Schema và migration | Đông viết, Bình review và triển khai; không chuyển trách nhiệm backfill/migration cho DB owner chưa xác định |
 
 ### 1.3. Các khái niệm
 
@@ -100,7 +100,7 @@ Request/response ứng dụng là `application/json`; lỗi là `application/pro
 | Quota | Quota và 429 ở mục 9 là phần cần triển khai trong MD-01, không phải tính năng hiện có của API-01 |
 | Request ID | Chỉ API ứng dụng cấp `X-Request-ID`; không giả định response R2 có cùng header hoặc cùng error format |
 
-Hướng tích hợp backend là module `app/modules/media`: router phân tích request, application service điều phối, domain kiểm tra quy tắc, repository lưu metadata và Unit of Work chốt transaction. Storage Adapter thực hiện I/O R2 ngoài transaction SQL kéo dài. Phần này tham chiếu [transaction architecture của API-01](https://github.com/zaabinh/SE347-UITConnect/blob/a28fd49147f4012d03438c1fa33262261425cff1/docs/BACKEND_TRANSACTIONS.md); cấu trúc modular monolith chưa được đưa vào nhánh R2 hiện tại.
+Hướng tích hợp backend là module `app/modules/media`: router phân tích request, application service điều phối, domain kiểm tra quy tắc, repository lưu metadata và Unit of Work chốt transaction. Storage Adapter thực hiện I/O R2 ngoài transaction SQL kéo dài. Phần này tham chiếu [transaction architecture của API-01](https://github.com/zaabinh/SE347-UITConnect/blob/a28fd49147f4012d03438c1fa33262261425cff1/docs/BACKEND_TRANSACTIONS.md); nhánh R2 đã kế thừa modular monolith và Unit of Work từ develop; REST v1/API-01 vẫn là bước tích hợp tiếp theo.
 
 ## 3. Tóm tắt endpoint (API Endpoint Summary)
 
@@ -170,7 +170,7 @@ stateDiagram-v2
 
 ### Các bước xác minh
 
-1. Xác thực user hiện tại, kiểm tra owner, purpose, trạng thái và hạn bằng đồng hồ backend theo UTC. Tái sử dụng điều kiện user active, đã hoàn tất profile trong [auth dependency](../backend/dependencies/auth.py). Tên dependency có chữ `verified` nhưng code hiện không yêu cầu xác minh email.
+1. Xác thực user hiện tại, kiểm tra owner, purpose, trạng thái và hạn bằng đồng hồ backend theo UTC. Tái sử dụng điều kiện user active, đã hoàn tất profile trong [auth dependency](../backend/app/modules/auth/dependencies.py). Tên dependency có chữ `verified` nhưng code hiện không yêu cầu xác minh email.
 2. Chuyển `pending` sang `verifying` bằng cập nhật có điều kiện; cấp `verification_token` và lease 120 giây. Chỉ một verifier thắng. Không giữ transaction SQL mở trong lúc gọi R2 hoặc xử lý ảnh.
 3. Dùng `HEAD` để phát hiện object thiếu/quá lớn; đọc một lần với giới hạn tối đa `MAX_BYTES + 1`. Đếm byte thực nhận và so sánh với `declared_size_bytes`, không chỉ tin metadata R2.
 4. Kiểm tra extension đã chuẩn hóa, MIME đã ký và nội dung thực. Đọc signature chỉ là bước đầu; phải giải mã ảnh đầy đủ, giới hạn frame, chiều và tổng pixel. Cấm SVG, GIF, WebP, file hỏng và ảnh nhiều frame trong scope đầu.
@@ -282,7 +282,7 @@ Nếu đã có verifier đang sở hữu lease, trả `202`, `MediaVerifyingResp
 
 **Lỗi:** auth chung; 404 `NOT_FOUND` nếu media thiếu, deleted hoặc không có visibility; 409 `MEDIA_NOT_READY` cho người có quyền quản lý media nhưng ảnh chưa ready; 503 `MEDIA_STORAGE_UNAVAILABLE`; 500 lỗi không dự kiến.
 
-**Hành vi, side effect và retry:** Chỉ kiểm tra quyền và ký GET cho final key, không sửa trạng thái/metadata. URL có hạn 60 giây, không lưu làm định danh persistent. Gọi lại có thể nhận URL mới; quyền được kiểm tra lại mỗi lần cấp. Object cuối dùng MIME đã xác minh, `Content-Disposition: inline` với tên backend sinh, `Cache-Control: private, no-store`. URL đã cấp còn dùng được đến hạn; giới hạn thu hồi nêu ở mục 8.
+**Hành vi, side effect và retry:** Chỉ kiểm tra quyền và ký GET cho final key, không sửa trạng thái/metadata. URL có hạn 60 giây cho private/restricted media và 300 giây cho bài active, không lưu làm định danh persistent. Gọi lại có thể nhận URL mới; quyền được kiểm tra lại mỗi lần cấp. Object cuối dùng MIME đã xác minh, `Content-Disposition: inline` với tên backend sinh, `Cache-Control: private, no-store`. URL đã cấp còn dùng được đến hạn; giới hạn thu hồi nêu ở mục 8.
 
 ### `DELETE /api/v1/media/{media_id}` — Xóa media
 
@@ -345,7 +345,7 @@ Nếu đã có verifier đang sở hữu lease, trả `202`, `MediaVerifyingResp
 | `content_type` | string | Có | Không | `image/jpeg` hoặc `image/png` | Định dạng ảnh cuối |
 | `size_bytes` | integer | Có | Không | 1–5242880 | Số byte ảnh cuối, có thể khác file đầu vào |
 | `width` | integer | Có | Không | 1–4096 | Chiều rộng pixel |
-| `height` | integer | Có | Không | 1–4096; width × height ≤ 16000000 | Chiều cao pixel |
+| `height` | integer | Có | Không | 1–4096; width × height ≤ 8000000 | Chiều cao pixel |
 
 ### `MediaVerifyingResponse`
 
@@ -361,7 +361,7 @@ Nếu đã có verifier đang sở hữu lease, trả `202`, `MediaVerifyingResp
 | --- | --- | --- | --- | --- | --- |
 | `media_id` | string UUID | Có | Không | Media ready, có visibility | Định danh ảnh được xem |
 | `url` | string URI | Có | Không | HTTPS signed GET | Capability xem ảnh cuối |
-| `expires_at` | UtcDateTime | Có | Không | Hạn 60 giây từ lúc cấp | Thời điểm frontend phải xin mới |
+| `expires_at` | UtcDateTime | Có | Không | 60 giây restricted; 300 giây active | Thời điểm frontend phải xin mới |
 
 ### `MediaDeletionResponse`
 
@@ -438,7 +438,7 @@ Các code `MEDIA_*`, status 410/415/503 và quota là phần mở rộng đề x
 
 Chính sách active/profile phù hợp dependency hiện tại. `is_verified` email không được tự thêm thành điều kiện trong task này. Các route bài hiện cho chủ bài/admin đọc bài không active; chính sách ảnh cho bài deleted ở đây siết hơn và cần nhóm review.
 
-Share dùng quyền bài gốc cùng với quyền bài share khi hiển thị. Nếu bài gốc mất quyền đọc, share không được cấp mới URL ảnh gốc. Một URL GET đã cấp vẫn là capability có thể chuyển tiếp và dùng đến hạn 60 giây, kể cả khi bài bị ẩn hoặc user bị ban sau đó. Nếu yêu cầu thu hồi tức thì, cần chuyển đường đọc qua gateway kiểm tra quyền từng request và review lại thiết kế; TTL không cung cấp thu hồi tức thì.
+Share dùng quyền bài gốc cùng với quyền bài share khi hiển thị. Nếu bài gốc mất quyền đọc, share không được cấp mới URL ảnh gốc. Với share, kiểm tra cả bài share lẫn bài gốc: không có quyền bài gốc thì không xem ảnh dù sở hữu bài share. Bài gốc deleted hoặc thiếu thì không cấp URL mới cho share, kể cả admin. Chỉ cả hai bài active mới dùng 300 giây; các trường hợp được phép nhưng restricted dùng 60 giây. Một URL GET đã cấp vẫn là capability có thể chuyển tiếp và dùng đến hết hạn đã cấp (tối đa 300 giây), kể cả khi bài bị ẩn hoặc user bị ban sau đó. Nếu yêu cầu thu hồi tức thì, cần chuyển đường đọc qua gateway kiểm tra quyền từng request và review lại thiết kế; TTL không cung cấp thu hồi tức thì.
 
 ### Contract bài viết
 
@@ -469,17 +469,17 @@ Backend từ chối Data URL/URL tùy ý làm ảnh mới và từ chối client
 | Định dạng | JPEG và PNG một frame; extension `.jpg`, `.jpeg`, `.png` |
 | MIME | `image/jpeg`, `image/png`; frontend chuẩn hóa JPEG thành `image/jpeg` |
 | Dung lượng đầu vào | Từ 1 đến 5 MiB, tối đa `5242880` byte |
-| Giới hạn ảnh giải mã | Tối đa 4096 pixel mỗi chiều và 16000000 pixel tổng cộng |
+| Giới hạn ảnh giải mã | Tối đa 4096 pixel mỗi chiều và 8000000 pixel tổng cộng |
 | Ảnh cuối cùng | JPEG hoặc PNG được backend ghi lại từ dữ liệu đã giải mã; cũng không vượt 5 MiB |
 | Tên file gốc | Tối đa 255 ký tự, cấm ký tự điều khiển, separator đường dẫn và tên nhiều phần mở rộng như `photo.exe.png` |
 | TTL URL upload | 300 giây; hạn intent dùng cùng mốc thời gian |
-| TTL URL xem ảnh | 60 giây; frontend xin URL mới khi cần |
+| TTL URL xem ảnh | 60 giây private/restricted; 300 giây bài active; frontend refresh theo expires_at |
 | Giới hạn cấp intent | 10 intent mỗi tài khoản mỗi 10 phút; tối đa 3 intent `pending` hoặc `verifying` đồng thời |
 | Ảnh `ready` chưa gắn vào bài | Giữ tối đa 24 giờ tính từ `verified_at` |
 | Bài bị soft delete | Ngừng cấp URL mới ngay; giữ liên kết và ảnh 7 ngày trước khi dọn |
 | Xử lý file tạm | Job mỗi 10 phút, chỉ dọn sau hạn URL upload cộng 60 giây và không có verifier đang sở hữu lease |
 
-Các con số cần Bình/API-01 xác nhận và đo lại trên staging. Kiểm tra dung lượng ở client giúp trải nghiệm; backend vẫn kiểm tra dữ liệu thực tế. Giới hạn 5 MiB là điều kiện để hệ thống chấp nhận media, không phải cam kết rằng một URL PUT luôn ngăn R2 nhận object lớn hơn. Giới hạn cấp intent và cảnh báo dung lượng giúp giảm lạm dụng; Bình cần chấp nhận giới hạn này hoặc chọn cơ chế ingress có thể chặn dung lượng trước khi lưu.
+Theo review Bình, giữ trần 8 triệu pixel; chỉ tăng 16 triệu sau benchmark Render và review kết quả. Các ngưỡng quota chi tiết cùng timeout/concurrency cần đo và xác nhận. Kiểm tra dung lượng ở client giúp trải nghiệm; backend vẫn kiểm tra dữ liệu thực tế. Giới hạn 5 MiB là điều kiện để hệ thống chấp nhận media, không phải cam kết rằng một URL PUT luôn ngăn R2 nhận object lớn hơn. Giới hạn cấp intent và cảnh báo dung lượng giúp giảm lạm dụng; Bình cần chấp nhận giới hạn này hoặc chọn cơ chế ingress có thể chặn dung lượng trước khi lưu.
 
 ### 9.2. Bucket và object key
 
@@ -553,7 +553,7 @@ Media service xử lý user, trạng thái, quota, validation và DB. Adapter ch
 | `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Secrets backend theo môi trường, scope tối thiểu cho hai private bucket |
 | `R2_UPLOADS_BUCKET`, `R2_MEDIA_BUCKET` | Tên hai private bucket |
 | `MEDIA_MAX_BYTES`, `MEDIA_MAX_PIXELS`, `MEDIA_MAX_DIMENSION` | Giới hạn kiểm tra |
-| `MEDIA_UPLOAD_TTL_SECONDS`, `MEDIA_READ_TTL_SECONDS` | Hạn URL |
+| `MEDIA_UPLOAD_TTL_SECONDS`, `MEDIA_RESTRICTED_READ_TTL_SECONDS`, `MEDIA_ACTIVE_READ_TTL_SECONDS` | Tên cấu hình dự kiến: 300 giây upload, 60 giây restricted, 300 giây active |
 | `MEDIA_ORPHAN_RETENTION_HOURS`, `MEDIA_DELETED_POST_RETENTION_DAYS` | Chính sách giữ và dọn |
 | Public assets bucket/domain | Bình quản lý riêng, không cấp quyền ghi cho runtime Media API |
 | `MAIL_LOGO_URL` | URL HTTPS logo ổn định cho email templates |
@@ -581,11 +581,11 @@ URL ký dùng S3 API domain, không thay bằng public custom domain. Bình cấ
 | Xóa R2 lỗi | Giữ deleting, retry với backoff; object missing được coi đã xóa |
 | Job dọn object cuối không có metadata | Chỉ xóa sau grace 24 giờ, không có verifier hợp lệ hoặc liên kết DB; không xóa object vừa được worker ghi |
 
-Job cleanup chạy được trên nhiều instance nhưng mỗi batch phải claim bản ghi có điều kiện. Khi DB không truy cập được, không dọn object cuối vì chưa chứng minh được nó là orphan. R2 lifecycle cho uploads là lớp dọn dự phòng do Bình review, không thay kiểm tra DB hoặc xử lý lease. Theo dõi số media rejected/expired/deleting kéo dài và dung lượng orphan; không log URL có chữ ký.
+Đông viết cleanup CLI; Bình triển khai bằng Render Cron Job dự kiến mỗi 10 phút. Không đặt scheduler trong Outbox Worker. Job phải claim batch bằng lease, có retry/backoff và log số file/byte đã dọn cùng lỗi/thời gian chạy. Theo dõi số intent theo user, dung lượng pending, tỷ lệ rejected và chi phí R2 bất thường để phát hiện abuse. Job chạy được trên nhiều instance nhưng mỗi batch phải claim bản ghi có điều kiện. Khi DB không truy cập được, không dọn object cuối vì chưa chứng minh được nó là orphan. R2 lifecycle cho uploads là lớp dọn dự phòng do Bình review, không thay kiểm tra DB hoặc xử lý lease. Theo dõi số media rejected/expired/deleting kéo dài và dung lượng orphan; không log URL có chữ ký.
 
 ## 12. Tương thích và migration (Compatibility and Migration)
 
-1. Khi tích hợp baseline API-01 mà nhóm thống nhất, kế thừa `backend/app/modules/media`, Unit of Work và Alembic đã có; không tạo một baseline Alembic cạnh tranh. Thêm revision `media` và FK/index `posts.cover_media_id` sau Alembic head được chọn. Chạy migration riêng trước API; không khôi phục `Base.metadata.create_all` ở startup. Baseline ứng dụng cũ `6b638b5` trên nhánh R2 được ghi ở đầu tài liệu để phân biệt với kiến trúc đích; bước A chưa merge code API-01 hoặc chạy migration.
+1. Đã merge develop để kế thừa Alembic/Unit of Work. Đông viết revision Media, Bình review schema và triển khai. Khi tích hợp API-01 mà nhóm thống nhất, kế thừa `backend/app/modules/media`, Unit of Work và Alembic đã có; không tạo một baseline Alembic cạnh tranh. Thêm revision `media` và FK/index `posts.cover_media_id` sau Alembic head được chọn. Chạy migration riêng trước API; không khôi phục `Base.metadata.create_all` ở startup. Revision dự thảo 20261122_03 nối 20261119_02 chỉ expand, giữ cover_image và dữ liệu legacy; chưa chạy migration trên database thật hoặc merge code API-01.
 2. Triển khai schema bổ sung trước, phát triển API và adapter với feature flag. Lập mapping chuyển `POST /api/v1/media/images` sang intent → PUT binary → completion; chuyển create/edit sang `cover_media_id`. Việc bỏ endpoint filesystem hoặc field `cover_image` có thể làm client cũ hỏng, cần kế hoạch cutover/version với API-01 thay vì chỉ regenerate contract. Kế thừa kiểm tra OpenAPI consistency và compatibility của API-01; candidate chưa được duyệt không tự trở thành approved baseline cho MD-01.
 3. Thống kê `cover_image`/`avatar_url` cũ thành Data URL, local upload hoặc URL ngoài. Backfill ảnh bài qua cùng kiểm tra nội dung vào R2; bảo toàn visibility của bài. Không để backend fetch URL tùy ý từ DB/request vì có thể truy cập địa chỉ nội bộ; dữ liệu ngoài cần allowlist và quy trình riêng.
 4. Thay create/edit/share/feed/profile DTO và UI đồng bộ. Avatar tích hợp sau; phải có kế hoạch chuyển ảnh avatar local trước khi tuyên bố toàn bộ media persistent production đã dùng R2.
@@ -613,7 +613,7 @@ Ma trận này là tiêu chí triển khai và kiểm thử ở các bước sau
 
 ## 14. Inventory frontend dự kiến (Frontend Integration Inventory)
 
-Giống cách API-01 tách inventory khỏi mô tả backend, bảng này ghi consumer và trạng thái riêng cho bốn endpoint R2. **Planned** nghĩa là vị trí và helper dự kiến, chưa có implementation hoặc kết quả kiểm thử UI. File `frontend/lib/mediaApi.ts` đã tồn tại trên nhánh API-01 nhưng chưa có trên baseline `6b638b5` của nhánh R2; các helper dưới đây sẽ bổ sung khi triển khai.
+Giống cách API-01 tách inventory khỏi mô tả backend, bảng này ghi consumer và trạng thái riêng cho bốn endpoint R2. **Planned** nghĩa là vị trí và helper dự kiến, chưa có implementation hoặc kết quả kiểm thử UI. File `frontend/lib/mediaApi.ts` đã tồn tại trên nhánh API-01 nhưng chưa có trên baseline develop đang dùng của nhánh R2; các helper dưới đây sẽ bổ sung khi triển khai.
 
 | Method và path | Operation ID | Client dự kiến | Page hoặc component dự kiến | Status | Phụ trách |
 | --- | --- | --- | --- | --- | --- |
@@ -643,20 +643,57 @@ Các môi trường giữ **Pending** vì MD-01 đang ở giai đoạn thiết k
 
 ## 16. Các quyết định cần review (Review Decisions)
 
-Đây là phần có thể gửi kèm sơ đồ lifecycle cho Bình và API-01. Cột kết quả để nhóm ghi quyết định sau review.
+Nguồn quyết định: [review Bình ngày 22/11/2026](https://github.com/zaabinh/SE347-UITConnect/issues/5#issuecomment-7072868351). Duyệt kiến trúc có điều kiện không đồng nghĩa đã nghiệm thu production.
 
 | Mục | Đề xuất cần xác nhận | Người review | Kết quả |
 | --- | --- | --- | --- |
-| Storage | Hai private bucket và một public assets bucket mỗi môi trường | Bình | Chờ xác nhận |
-| Validation | JPEG/PNG, 5 MiB, 4096 mỗi chiều, 16 triệu pixel, ghi lại ảnh từ pixel | Bình, Đông | Chờ xác nhận |
-| Chi phí verification | Backend đọc/ghi lại ảnh với giới hạn tài nguyên, benchmark trên Render | Bình, Đông | Chờ xác nhận |
-| Upload abuse | TTL 300 giây, quota; chấp nhận giới hạn không chặn tuyệt đối byte tại ingress | Bình, API-01 | Chờ xác nhận |
-| Read access | Bucket private, URL GET 60 giây, chấp nhận capability còn hạn khi quyền đổi | Bình, API-01 | Chờ xác nhận |
-| API | Bốn endpoint, DTO và error envelope, semantics retry/complete | API-01, Na | Chờ xác nhận |
-| Post integration | cover_media_id, một bài gốc mỗi media, share đọc qua bài gốc | API-01, Na, DB owner | Chờ xác nhận |
-| Retention | Orphan 24 giờ, bài deleted giữ 7 ngày, cleanup có lease và buffer | Bình, DB owner | Chờ xác nhận |
-| Migration | Alembic baseline, backfill, cutover và xử lý ảnh legacy | DB owner, Bình | Chờ xác nhận |
-| Infrastructure | Tên bucket, origins, credentials tối thiểu và job cleanup chạy ở đâu | Bình | Chờ xác nhận |
-| Logo | Bucket/domain public, quyền quản trị riêng, URL MAIL_LOGO_URL | Bình, Đông | Chờ xác nhận |
+| Storage | Hai private bucket và một public assets bucket mỗi môi trường | Bình cấu hình | Đã duyệt kiến trúc |
+| Validation | JPEG/PNG, 5 MiB, 4096 px/chiều, 8 triệu pixel | Đông benchmark, Bình review | Chỉ tăng 16 triệu sau benchmark Render |
+| Verification | Decode/re-encode, kiểm soát RAM/CPU/concurrency, không giữ transaction khi I/O | Đông | Primitive có code; worker isolation/concurrency chưa tích hợp |
+| Upload abuse | TTL 300 giây, quota user, giám sát abuse/chi phí | Đông và Bình | Quota/monitoring chưa triển khai |
+| Read access | 60 giây restricted, 300 giây active; frontend refresh | Đông và Na | Read policy có tests; endpoint chưa tích hợp |
+| API | Đồng ý bốn endpoints | Đông và API-01 | Còn chốt DTO, errors, retry/completion semantics |
+| Post integration | cover_media_id, một bài gốc mỗi media, kiểm tra quyền bài gốc khi share | Đông và Na | Metadata/policy có code; UI chưa tích hợp |
+| Retention | Orphan 24 giờ, soft-delete 7 ngày, lease/expiry buffer/retry | Đông | Cleanup và backfill tiếp tục sau schema review |
+| Migration | Kế thừa Alembic, expand → backfill → cutover, giữ legacy | Đông viết; Bình review/deploy | Draft revision 20261122_03, chưa chạy SQL Server thật |
+| Infrastructure | Render Cron Job riêng, không scheduler trong Outbox Worker | Bình | Chờ cấu hình môi trường |
+| Logo | Public assets, custom HTTPS domain và URL versioned | Bình | Chưa smoke test email clients |
 
-Bước A có đầu ra là sơ đồ, chính sách, schema và contract nháp trong tài liệu này. Trước khi chốt contract và bắt đầu tích hợp thật, Đông ghi lại kết quả review ở bảng trên, cập nhật các quyết định được thay đổi và thống nhất API với API-01 theo yêu cầu issue. Việc triển khai adapter, migration, tests và smoke test staging thuộc các bước tiếp theo.
+### Phần implementation đầu tiên
+
+| File | Nội dung hiện có |
+| --- | --- |
+| [storage.py](../backend/app/modules/media/storage.py) | Adapter ký PUT/GET, bounded read, ghi private final, xóa idempotent; inject client để test offline |
+| [verification.py](../backend/app/modules/media/verification.py) | Kiểm tra snapshot, size/type/dimension/pixel/frame, decode/re-encode và loại metadata |
+| [policy.py](../backend/app/modules/media/policy.py) | Giới hạn review, key UUID, TTL/visibility từ dữ liệu backend |
+| [models.py](../backend/app/modules/media/models.py) | Metadata dự thảo để Bình review schema |
+| [20261122_03_media.py](../backend/alembic/versions/20261122_03_media.py) | Expand migration nối 20261119_02; giữ cover_image và legacy; downgrade có contract guard |
+| [test_media_primitives.py](../backend/tests/test_media_primitives.py) | SDK stub/presign offline, verification và share/read policy |
+| [test_media_migration.py](../backend/tests/test_media_migration.py) | DDL SQL Server offline, tính additive và filtered indexes |
+| [benchmark_media.py](../backend/scripts/benchmark_media.py) | Benchmark lặp lại được, không cần DB hoặc R2 |
+
+Các primitive chưa ghép vào application service/router. Chưa triển khai intent persistence/claim/complete end-to-end, quota, cleanup CLI, legacy backfill hoặc frontend. Verification phải chạy trong worker có timeout/memory/concurrency controls trước khi mở endpoint; hàm kiểm tra ảnh hiện chưa có cơ chế kill worker hoặc hard CPU/RAM limit. Post model đã có cột mới nên cần review và áp dụng expand migration trước khi chạy phiên bản này trên database hiện có; chưa chạy migration thật trong đợt này.
+
+### Benchmark và bước tiếp theo
+
+Kiểm tra ngày 22/11/2026: toàn bộ backend suite `python -m pytest -q` đạt **193 passed**, 19 deprecation warnings, 35.03 giây. Bao gồm 34 ca Media mới: SDK stub/presigned URL offline, verification, quyền share/TTL, ràng buộc liên kết trên SQLite và DDL SQL Server offline. Chưa chạy migration trên SQL Server thật hoặc smoke test R2/Render. Script kiểm tra migration của repo đã được cập nhật để nối revision thử nghiệm từ head hiện tại, tránh tạo hai Alembic heads khi thêm revision Media.
+
+Chạy trong backend sau khi cài `pip install -e ".[dev]"`:
+
+```powershell
+python -m pytest tests/test_media_primitives.py tests/test_media_migration.py -q
+python -m scripts.benchmark_media --iterations 3
+```
+
+Benchmark local ngày 22/11/2026, Windows 11, Pillow 13.0.0, concurrency 1, ảnh gradient tổng hợp:
+
+| Định dạng | Kích thước | Thời gian mỗi lần trong 3 lần |
+| --- | --- | --- |
+| JPEG | 1200 × 800 | 0.0080–0.0082 giây |
+| PNG | 1200 × 800 | 0.0155–0.0163 giây |
+| JPEG | 4000 × 2000 | 0.0633–0.0684 giây |
+| PNG | 4000 × 2000 | 0.0992–0.1096 giây |
+
+Windows chưa có peak RSS trong output công cụ. Bình/Đông cần chạy trên Render, thêm ảnh thật/high-entropy sát 5 MiB, theo dõi peak RSS và CPU, đo latency nhiều request rồi chọn concurrency/timeout. Không nâng 16 triệu pixel dựa vào kết quả local. Cron, credentials, CORS, R2 thật và frontend vẫn Pending.
+
+Tiếp theo: Bình review model/revision và cleanup policy; Đông/API-01 chốt DTO và completion/retry; sau đó ghép use case, viết cleanup/backfill và tích hợp Na. Secrets truyền qua environment channel.

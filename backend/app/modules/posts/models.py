@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func, Unicode, UnicodeText
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func, Unicode, UnicodeText, Index, text
 from sqlalchemy.dialects.mssql import UNIQUEIDENTIFIER
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
@@ -7,6 +7,9 @@ from app.db.base import Base
 
 class Post(Base):
     __tablename__ = "posts"
+    __table_args__ = (Index("uq_posts_cover_media", "cover_media_id", unique=True,
+                            mssql_where=text("cover_media_id IS NOT NULL"),
+                            sqlite_where=text("cover_media_id IS NOT NULL")),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[str] = mapped_column(
@@ -19,6 +22,10 @@ class Post(Base):
     slug: Mapped[str | None] = mapped_column(String(255), nullable=True, unique=True)
     content: Mapped[str] = mapped_column(UnicodeText, nullable=False)
     cover_image: Mapped[str | None] = mapped_column(Text, nullable=True)
+    cover_media_id: Mapped[str | None] = mapped_column(
+        UNIQUEIDENTIFIER(as_uuid=False),
+        ForeignKey("media.id", name="fk_posts_cover_media", ondelete="NO ACTION"), nullable=True,
+    )
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending", server_default="pending", index=True)
     original_post_id: Mapped[int | None] = mapped_column(ForeignKey("posts.id", ondelete="NO ACTION"), nullable=True, index=True)
     share_caption: Mapped[str | None] = mapped_column(UnicodeText, nullable=True)
