@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from schemas.report_schema import ReportCreate
+from app.modules.moderation.schemas import ReportCreate
 
 
 def test_report_reason_accepts_standardized_values() -> None:

@@ -1,8 +1,6 @@
-"""Initialize database tables"""
-from database import Base, engine
-from models import AuthSession, Bookmark, Comment, Follow, Post, User
+"""Compatibility command: initialize an empty database through Alembic."""
 
-# Drop existing tables and recreate (for idempotency)
-Base.metadata.drop_all(bind=engine)
-Base.metadata.create_all(bind=engine)
-print("✅ Database tables recreated successfully!")
+from scripts.upgrade_db import main
+
+if __name__ == '__main__':
+    main()

@@ -3,7 +3,7 @@ FROM python:3.12-slim-bookworm
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    PORT=10000 \
+    PORT=8000 \
     ODBCSYSINI=/etc
 
 WORKDIR /app
@@ -29,17 +29,23 @@ RUN apt-get update \
     && apt-get purge -y --auto-remove curl gnupg \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY pyproject.toml .
+COPY app ./app
+COPY scripts ./scripts
 RUN pip install --upgrade pip \
-    && pip install -r requirements.txt
+    && pip install .
 
 COPY . .
 
-RUN adduser --disabled-password --gecos "" appuser \
+# Chạy bằng non-root user
+RUN useradd --create-home --uid 10001 appuser \
+    && mkdir -p /app/uploads \
     && chown -R appuser:appuser /app
+
 
 USER appuser
 
-EXPOSE 10000
+EXPOSE 8000
 
-CMD ["python", "render_start.py"]
+# Uvicorn runs in the container's main process and receives shutdown signals.
+CMD ["python", "-m", "app"]

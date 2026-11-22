@@ -1,13 +1,16 @@
 /*
     StudentForum SQL Server example schema.
 
+    Historical reference only. Do not execute this file against a versioned DB:
+    it contains DROP TABLE statements. Use python -m scripts.migrate upgrade.
+
     This file mirrors the current backend SQLAlchemy models plus the latest
     moderation/profile upgrades. It is intended as a reference schema or a
     clean manual bootstrap script.
 
     For demo data, prefer:
         cd backend
-        python setup_local_db.py --seed
+        python -m scripts.setup_local_db --seed
 
     Notes:
     - Foreign keys use NO ACTION to avoid SQL Server multiple cascade path issues.

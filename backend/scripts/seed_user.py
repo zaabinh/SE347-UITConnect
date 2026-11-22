@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session
 
-from database import SessionLocal
-from models.user import User
-from utils.hash import hash_password
+from app.db.session import SessionLocal
+from app.modules.users.models import User
+from app.core.security import hash_password
 
 
 def create_demo_user() -> User:

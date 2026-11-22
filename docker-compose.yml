@@ -17,24 +17,27 @@ services:
       - mssql_data:/var/opt/mssql
 
   db-init:
-    image: se104forumapp-backend:local
+    image: uitconnect-backend:local
     build:
       context: ./backend
     environment:
+      APP_ENV: "${APP_ENV:-development}"
       DATABASE_URL: "${DATABASE_URL:-mssql+pyodbc://sa:StrongPassword123%21@db:1433/StudentForum?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=yes&TrustServerCertificate=yes}"
       JWT_SECRET_KEY: "${JWT_SECRET_KEY:-change-me-in-prod}"
       CORS_ALLOWED_ORIGINS: "${CORS_ALLOWED_ORIGINS:-http://localhost:3000}"
       FRONTEND_URL: "${FRONTEND_URL:-http://localhost:3000}"
-    command: ["python", "setup_local_db.py", "--wait", "90"]
+    command: ["python", "-m", "scripts.setup_local_db", "--wait", "90"]
     depends_on:
       db:
         condition: service_healthy
 
   backend:
-    image: se104forumapp-backend:local
+    # Inherit CMD ["python", "-m", "app"] from the shared backend image.
+    image: uitconnect-backend:local
     build:
       context: ./backend
     environment:
+      APP_ENV: "${APP_ENV:-development}"
       DATABASE_URL: "${DATABASE_URL:-mssql+pyodbc://sa:StrongPassword123%21@db:1433/StudentForum?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=yes&TrustServerCertificate=yes}"
       JWT_SECRET_KEY: "${JWT_SECRET_KEY:-change-me-in-prod}"
       CORS_ALLOWED_ORIGINS: "${CORS_ALLOWED_ORIGINS:-http://localhost:3000}"
@@ -64,6 +67,25 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+
+  outbox-worker:
+    profiles: ["outbox"]
+    image: uitconnect-backend:local
+    build:
+      context: ./backend
+    command: ["python", "-m", "scripts.outbox_worker"]
+    restart: unless-stopped
+    environment:
+      APP_ENV: "${APP_ENV:-development}"
+      DATABASE_URL: "${DATABASE_URL:-mssql+pyodbc://sa:StrongPassword123%21@db:1433/StudentForum?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=yes&TrustServerCertificate=yes}"
+      JWT_SECRET_KEY: "${JWT_SECRET_KEY:-change-me-in-prod}"
+      CORS_ALLOWED_ORIGINS: "${CORS_ALLOWED_ORIGINS:-http://localhost:3000}"
+      FRONTEND_URL: "${FRONTEND_URL:-http://localhost:3000}"
+      RESEND_API_KEY: "${RESEND_API_KEY:-}"
+      MAIL_FROM: "${MAIL_FROM:-UITConnect <uitconnect@zaabinh.id.vn>}"
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
 
 volumes:
   mssql_data:

@@ -1,12 +1,17 @@
 services:
   - type: web
-    name: se104-forum-backend
+    name: uitconnect-backend
     runtime: docker
     plan: free
     dockerfilePath: backend/Dockerfile
     dockerContext: backend
+    # No dockerCommand override: use the image's python -m app launcher.
     healthCheckPath: /health
     envVars:
+      - key: APP_ENV
+        value: production
+      - key: PORT
+        value: "10000"
       - key: DATABASE_URL
         sync: false
       - key: JWT_SECRET_KEY
@@ -25,7 +30,3 @@ services:
         sync: false
       - key: UPLOAD_DIR
         value: uploads
-      - key: RUN_DB_SETUP_ON_START
-        value: "false"
-      - key: SKIP_DB_UPGRADE
-        value: "false"
