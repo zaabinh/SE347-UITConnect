@@ -256,7 +256,17 @@ export default function DashboardPage() {
               {pendingPosts.map((post) => (
                 <tr key={post.id} className="border-t border-slate-100">
                   <td className="py-2">#{post.id}</td>
-                  <td>{post.title}</td>
+                  <td className="py-2">
+                    <a
+                      href={`/post/${post.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-uit-600 underline-offset-2 hover:underline focus-visible:underline"
+                      title="View full post in a new tab"
+                    >
+                      {post.title}
+                    </a>
+                  </td>
                   <td>
                     {post.requested_new_tags?.length ? (
                       <span className="rounded-lg bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">
@@ -268,6 +278,15 @@ export default function DashboardPage() {
                   </td>
                   <td>{post.status}</td>
                   <td className="space-x-2">
+                    <a
+                      href={`/post/${post.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                      aria-label={`View full post ${post.title}`}
+                    >
+                      View
+                    </a>
                     <button onClick={async () => { await approvePost(post.id); await loadData(); }} className="rounded-lg bg-emerald-600 px-2 py-1 text-xs text-white">Approve</button>
                     <button onClick={async () => { await rejectPost(post.id); await loadData(); }} className="rounded-lg bg-rose-600 px-2 py-1 text-xs text-white">Reject</button>
                   </td>
