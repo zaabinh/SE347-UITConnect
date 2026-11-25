@@ -1,293 +1,137 @@
-# Đồ án SE347 - UITConnect
+# UITConnect
 
-## Sinh Viên Thực Hiện
+A full-stack social networking platform for the UIT student community, built around modular backend services, personalized content discovery, and community moderation.
 
-| Họ và tên | MSSV | Phân công |
-| --- | --- | --- |
+**Stack:** Next.js · React · TypeScript · FastAPI · SQLAlchemy · SQL Server · Alembic · Docker
 
-UITConnect là ứng dụng diễn đàn sinh viên dành cho cộng đồng UIT. Dự án gồm xác thực, bài viết, bình luận lồng nhau, report, kiểm duyệt, notification, gợi ý bài viết, hồ sơ người dùng và cấu hình deploy lên Vercel + Render.
+**Status:** Active development (V2) · University team project
 
-## Công nghệ
+## Overview
 
-- Frontend: Next.js 15.5.19, React 19.0.4, TypeScript, Tailwind CSS
-- Backend: FastAPI, SQLAlchemy 2.0, Uvicorn
-- Database: Microsoft SQL Server qua `pyodbc`
-- SQL driver: ODBC Driver 18 for SQL Server
-- Xác thực: JWT access/refresh token, Google OAuth tùy chọn
-- Deploy: Vercel cho frontend, Render Docker backend, Azure SQL hoặc SQL Server bên ngoài
+UITConnect provides a shared space for students to publish posts, exchange ideas, discover relevant content, and interact with their community. The second iteration focuses on improving software architecture, integration reliability, and deployment workflows while extending the existing forum functionality.
 
-## Cấu trúc Repository
+## Key features
 
-```text
-backend/
-  app/
-    main.py
-    core/
-    db/
-    modules/  # auth, users, posts, comments, feed, moderation, notifications
-  alembic/
-  scripts/
-  tests/
-  pyproject.toml
-  Dockerfile
+| Area | Functionality |
+| --- | --- |
+| Authentication | Registration, login, JWT access and refresh tokens, logout, optional Google OAuth |
+| Content | Post creation, editing, deletion, tags, search, sorting and pagination |
+| Social interactions | Likes, bookmarks, sharing, nested comments, follow/unfollow |
+| Content discovery | Trending, similarity-based, collaborative and profile-based recommendations |
+| Moderation | Reporting, approval/rejection workflows, account and tag management |
+| Notifications | Persisted notifications for interactions and moderation events |
 
-frontend/
-  app/
-  components/
-  lib/
-  public/
-  package.json
-  next.config.ts
-  vercel.json
+## System architecture
 
-docs/
-docker-compose.yml
-render.yaml
-PROJECT_SUMMARY.md
-PROJECT_SUMMARY_vi.md
+```mermaid
+flowchart LR
+    U[Student / Moderator] --> FE[Next.js web client]
+    FE -->|REST / JWT| API
+    subgraph API[FastAPI modular monolith]
+      direction TB
+      M[Auth · Users · Posts · Comments]
+      N[Feed · Moderation · Notifications]
+      S[Application services / Repositories]
+      M --> S
+      N --> S
+    end
+    S -->|SQLAlchemy / Unit of Work| DB[(SQL Server)]
+    DB --> W[Optional outbox worker]
+    W --> E[Resend email API]
 ```
 
-## Trạng thái tính năng
+The modular monolith organizes business capabilities into feature modules rather than independently deployed microservices. Routers handle HTTP concerns, application services orchestrate use cases, and repositories encapsulate persistence.
 
-Đã có:
+## Engineering highlights
 
-- Đăng ký và đăng nhập local
-- JWT refresh/logout
-- Google OAuth callback tùy chọn
-- Luồng hoàn thiện hồ sơ
-- Feed, tìm kiếm, tag, sắp xếp và phân trang
-- Tạo, sửa, xóa, like, bookmark, share và report bài viết
-- Bình luận lồng nhau và report bình luận
-- Hồ sơ người dùng hiện tại/công khai
-- Follow/unfollow
-- Notification cho kiểm duyệt, like, comment, reply, report, follow và trạng thái tài khoản
-- Admin quản lý user, xử lý report, duyệt/từ chối bài, tag và analytics
-- Gợi ý bài viết theo trending, tương tự, collaborative và profile
+- **Transaction consistency:** Application Service, Repository and Unit of Work patterns keep related writes atomic. Notifications are persisted in the same transaction as their corresponding business actions.
+- **Asynchronous email delivery:** The password-reset flow uses a durable transactional outbox and a separate worker with retries, lease-based claiming and provider idempotency keys. Delivery is at-least-once, not exactly-once.
+- **Database evolution:** Alembic migrations are executed as a separate deployment step. The [baseline verification](backend/alembic/BASELINE_VERIFICATION.md) documents validation against a real SQL Server schema containing 16 application tables, 46 indexes and 31 foreign keys.
+- **Deployment readiness:** Docker Compose, GitHub Actions, a shared API entrypoint, startup database checks and a liveness endpoint support consistent development and deployment workflows.
+- **Security:** JWT authentication, permission and ownership checks, explicit CORS configuration and production secret validation.
 
-Giới hạn hiện tại:
+## Technology stack
 
-- Xác minh email đang tạm tắt.
-- Gửi email thật chưa hoàn thiện; backend đang in email ra log.
-- Notification chưa realtime.
-- `/settings` vẫn là giao diện placeholder.
+| Layer | Technologies |
+| --- | --- |
+| Frontend | Next.js, React, TypeScript, Tailwind CSS |
+| Backend | Python, FastAPI, SQLAlchemy, Uvicorn |
+| Database | Microsoft SQL Server, ODBC Driver 18, Alembic |
+| Infrastructure | Docker, Docker Compose, GitHub Actions |
+| Deployment targets | Vercel, Render, Azure SQL / external SQL Server |
+| Email integration | Resend (optional configured outbox worker) |
 
-## Biến môi trường
+## Getting started
 
-### Backend
+### Docker Compose
 
-Tạo `backend/.env` từ `backend/.env.example`.
+Prerequisite: Docker Engine with Compose and sufficient resources for SQL Server. The default configuration is for local development only; configure your own secrets for shared environments.
 
-Cấu hình được đọc bằng `pydantic-settings` và kiểm tra trước khi khởi động API
-hoặc chạy setup database. Các biến `DATABASE_URL` và `CORS_ALLOWED_ORIGINS` là bắt buộc;
-`FRONTEND_URL` mặc định là `http://localhost:3000`. Biến môi trường ghi đè giá trị trong `.env`.
-`CORS_ALLOWED_ORIGINS` nhận các HTTP origin phân cách bằng dấu phẩy.
-
-Khi deploy, đặt `APP_ENV=production` (Render Blueprint đã cấu hình sẵn).
-Production từ chối JWT secret mặc định, giá trị mẫu và secret dưới 32 ký tự.
-Tạo secret riêng bằng `python -c "import secrets; print(secrets.token_urlsafe(48))"`
-và lưu vào `JWT_SECRET_KEY`. Không ghi secret vào repository.
-
-```env
-DATABASE_URL=mssql+pyodbc://USER:PASSWORD@SERVER:1433/StudentForum?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=yes&TrustServerCertificate=yes
-APP_ENV=development
-JWT_SECRET_KEY=replace-with-a-long-random-secret
-JWT_ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=60
-REFRESH_TOKEN_EXPIRE_DAYS=7
-FRONTEND_URL=http://127.0.0.1:3000
-CORS_ALLOWED_ORIGINS=http://127.0.0.1:3000,http://localhost:3000
-PUBLIC_API_URL=http://127.0.0.1:8000
+```bash
+git clone https://github.com/zaabinh/SE347-UITConnect.git
+cd SE347-UITConnect
+git checkout develop
+docker compose up -d --build
 ```
 
-Ví dụ Azure SQL / Render:
+| Service | Local URL |
+| --- | --- |
+| Web application | http://localhost:3000 |
+| API documentation | http://localhost:8000/docs |
+| API liveness | http://localhost:8000/health |
 
-```env
-DATABASE_URL=mssql+pyodbc://USER:PASSWORD@SERVER.database.windows.net:1433/StudentForum?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=yes&TrustServerCertificate=no
-```
+The Compose database initialization service prepares the local database before the backend starts. For native development, copy `backend/.env.example` and `frontend/.env.example` to the corresponding local environment files and configure the SQL Server connection and allowed origins.
 
-Nếu password DB có ký tự đặc biệt thì cần URL-encode, ví dụ `!` -> `%21`, `@` -> `%40`, `#` -> `%23`.
-
-### Frontend
-
-Tạo `frontend/.env.local` từ `frontend/.env.example`.
-
-```env
-NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
-```
-
-## Chạy local không dùng Docker
-
-### Backend
-
-```powershell
-cd backend
-python -m venv .venv
-.venv\Scripts\activate
-pip install -e ".[dev]"
+```bash
+# Backend (from backend/, with a Python virtual environment active)
+pip install -e '.[dev]'
 python -m scripts.setup_local_db --wait 90
 python -m app
-```
 
-Entrypoint chung là `python -m app`, dùng `app.main:app` và factory
-`app.factory.create_app()`. Launcher đọc `APP_HOST` (mặc định `0.0.0.0`) và `PORT`
-(mặc định `8000`) từ settings, không bật reload. `APP_PORT` không được launcher dùng.
-Khi cần reload cho phát triển local, dùng
-`uvicorn app.main:app --reload --host 127.0.0.1 --port 8000`.
-
-Dockerfile chạy `python -m app`; Compose và Render kế thừa CMD đó, không ghi đè
-lệnh chạy. Compose dùng cổng `8000`, Render dùng `PORT=10000`. GitHub Actions
-build cùng Dockerfile và chạy CMD mặc định để kiểm tra `/health` bằng SQLite
-trong bộ nhớ; bước này kiểm tra entrypoint, không thay thế test tích hợp SQL Server.
-Nếu service Render trước đây có Docker Command tùy chỉnh trong Dashboard,
-xóa giá trị đó để service dùng CMD của image.
-
-Lifespan tạo thư mục uploads, kiểm tra kết nối DB bằng `SELECT 1` trước khi nhận
-request và đóng connection pool khi shutdown, kể cả khi startup thất bại.
-API không tự tạo bảng hoặc chạy migration. `/health` là liveness endpoint;
-nó không kiểm tra lại DB trong từng request.
-
-Tài liệu API:
-
-- Swagger UI: `http://127.0.0.1:8000/docs`
-- ReDoc: `http://127.0.0.1:8000/redoc`
-- Health check: `http://127.0.0.1:8000/health`
-
-### Frontend
-
-```powershell
-cd frontend
+# Frontend (in another terminal, from frontend/)
 npm ci
 npm run dev
 ```
 
-Frontend URL: `http://127.0.0.1:3000`
+For the optional email worker, follow the migration and provider configuration in the [transaction runbook](docs/BACKEND_TRANSACTIONS.md).
 
-## Chạy bằng Docker Compose
+## Testing and deployment
 
-Tại root repo:
-
-```powershell
-docker compose up -d --build
-```
-
-Các service:
-
-- SQL Server: `localhost:1433`
-- Backend: `http://localhost:8000`
-- Frontend: `http://localhost:3000`
-
-## Deploy
-
-### Frontend trên Vercel
-
-Cấu hình Vercel Project Settings:
-
-- Root Directory: `frontend`
-- Framework Preset: Next.js
-- Install Command: `npm ci`
-- Build Command: `npm run build`
-- Output Directory: để trống
-
-Biến môi trường:
-
-```env
-NEXT_PUBLIC_API_URL=https://your-backend.onrender.com
-```
-
-### Backend trên Render
-
-Dùng Blueprint `render.yaml` ở root repo, hoặc tạo Docker Web Service thủ công:
-
-- Dockerfile Path: `backend/Dockerfile`
-- Docker Context: `backend`
-- Health Check Path: `/health`
-
-Biến môi trường trên Render:
-
-```env
-DATABASE_URL=mssql+pyodbc://USER:PASSWORD@SERVER.database.windows.net:1433/StudentForum?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=yes&TrustServerCertificate=no
-FRONTEND_URL=https://your-frontend.vercel.app
-CORS_ALLOWED_ORIGINS=https://your-frontend.vercel.app
-PUBLIC_API_URL=https://your-backend.onrender.com
-JWT_SECRET_KEY=generate-a-long-random-secret
-JWT_ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=60
-REFRESH_TOKEN_EXPIRE_DAYS=7
-RUN_DB_SETUP_ON_START=false
-```
-
-Chuẩn bị schema bằng `python -m scripts.setup_local_db --wait 90` và chạy các
-migration đã được review trong bước deploy riêng, trước khi khởi động worker.
-Baseline `20261119_01` đã được kiểm chứng trên SQL Server thật. Database trống dùng
-`python -m scripts.migrate upgrade`; database có schema tương đương dùng
-`python -m scripts.migrate verify` rồi `python -m scripts.migrate adopt` để stamp,
-không chạy lại CREATE TABLE. Quy trình expand–backfill–contract và workflow migration
-riêng được mô tả tại [backend/alembic/README.md](backend/alembic/README.md).
-Entrypoint không chạy setup DB, kể cả khi biến cũ `RUN_DB_SETUP_ON_START` được bật.
-Khởi động thất bại nếu không kết nối được DB. `scripts.render_start` chỉ còn là
-alias tương thích gọi cùng launcher.
-
-## Route chính
-
-Frontend:
-
-- `/`
-- `/login`
-- `/register`
-- `/feed`
-- `/create`
-- `/edit/[id]`
-- `/post/[id]`
-- `/profile/[id]`
-- `/profile/edit`
-- `/dashboard`
-- `/settings`
-
-Backend:
-
-- `POST /auth/register`
-- `POST /auth/login`
-- `GET /auth/me`
-- `GET /api/posts/feed`
-- `POST /api/posts/`
-- `GET /api/posts/{post_id}`
-- `POST /api/posts/{post_id}/comments/`
-- `GET /users/me/notifications`
-- `GET /api/admin/reports`
-- `POST /api/admin/reports/{report_id}/moderate`
-- `GET /api/admin/posts/pending`
-- `POST /api/admin/posts/{post_id}/approve`
-
-Xem `PROJECT_SUMMARY_vi.md` để có danh sách endpoint đầy đủ.
-
-## Kiểm tra
-
-Backend:
-
-```powershell
-cd backend
+```bash
+# Backend, from backend/
 python -m pytest -q
-```
 
-Frontend:
-
-```powershell
-cd frontend
-npm audit
+# Frontend, from frontend/
+npm ci
 npm run build
+
+# From repository root (validate Compose without exposing configuration)
+docker compose config --quiet
 ```
 
-Docker Compose:
+CI configuration: [GitHub Actions](.github/workflows/ci.yml). Database changes follow the [migration workflow](.github/workflows/database-migrations.yml) and [Alembic runbook](backend/alembic/README.md). The Docker smoke test does not replace SQL Server integration testing. Deployment configuration is available in [render.yaml](render.yaml); a live production deployment is not claimed here.
 
-```powershell
-docker compose -f docker-compose.yml config
+## Repository layout
+
+```text
+backend/         FastAPI application, modules, migrations and tests
+frontend/        Next.js web application
+Database/        Database documentation
+docs/            Technical documentation
+.github/         CI and migration workflows
 ```
 
+## Documentation
 
-## Backend transaction architecture
+- [Backend transactions and transactional outbox](docs/BACKEND_TRANSACTIONS.md)
+- [Database migration runbook](backend/alembic/README.md)
+- [Database schema](Database/database.md)
+- [API overview (partial; use Swagger for the current contract)](docs/API_ENDPOINTS.md)
 
-Write use cases use Application Service + Repository + Unit of Work; password
-reset email is delivered through a durable outbox. Deploy migration
-`20261119_02` before the new API and run its separate worker. See
-[transaction and outbox runbook](docs/BACKEND_TRANSACTIONS.md).
+## Current limitations
 
+Email verification, real-time notifications and settings functionality are still under development. The password-reset outbox is implemented in code, but live email delivery requires provider configuration and a running worker. Further production integration and performance validation are required.
+
+## Project context
+
+Developed as a team project for SE347 at the University of Information Technology (VNU-HCM). The repository preserves the team's shared implementation and engineering documentation; individual contributions can be reviewed through the commit and pull request history.
